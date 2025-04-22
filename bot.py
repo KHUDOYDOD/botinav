@@ -52,6 +52,8 @@ ADMIN_USER_ANALYTICS, ADMIN_SIGNAL_MANAGEMENT, ADMIN_DIRECT_MESSAGE = range(18, 
 ADMIN_SEARCH_USER, ADMIN_OTC_SIGNALS, ADMIN_TRADING_VIEW = range(21, 24)
 ADMIN_SCHEDULER, ADMIN_API, ADMIN_SECURITY, ADMIN_PROXY, ADMIN_AUTO_SIGNALS = range(24, 29)
 ADMIN_SEND_MESSAGE_TO_USER = 29
+ADMIN_MESSAGE_TO_PENDING, ADMIN_SELECT_USERS, ADMIN_CONTENT_MANAGER = range(30, 33)
+ADMIN_STATISTICS, ADMIN_QUICK_COMMANDS, ADMIN_HISTORY, ADMIN_PLUGINS, ADMIN_MARKETPLACE = range(33, 38)
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -869,6 +871,10 @@ def get_admin_keyboard():
             InlineKeyboardButton("🔍 Поиск пользователя", callback_data="admin_search_user"),
             InlineKeyboardButton("📩 Прямое сообщение", callback_data="admin_direct_message")
         ],
+        [
+            InlineKeyboardButton("📩 Сообщение неодобренным", callback_data="admin_message_to_pending"),
+            InlineKeyboardButton("👥 Выбрать пользователей", callback_data="admin_select_users")
+        ],
         
         # OTC и платформы
         [
@@ -877,7 +883,10 @@ def get_admin_keyboard():
         ],
         
         # Аналитические функции и настройки
-        [InlineKeyboardButton("📊 Статистика бота", callback_data="admin_stats")],
+        [
+            InlineKeyboardButton("📊 Статистика бота", callback_data="admin_stats"),
+            InlineKeyboardButton("📈 Аналитика детальная", callback_data="admin_statistics")
+        ],
         [
             InlineKeyboardButton("📈 Анализ активности", callback_data="admin_activity"),
             InlineKeyboardButton("⚙️ Настройки", callback_data="admin_settings")
@@ -893,6 +902,12 @@ def get_admin_keyboard():
         [
             InlineKeyboardButton("⏱️ Планировщик задач", callback_data="admin_scheduler"),
             InlineKeyboardButton("🔌 API интеграции", callback_data="admin_api")
+        ],
+        
+        # Контент и управление
+        [
+            InlineKeyboardButton("📑 Управление контентом", callback_data="admin_content_manager"),
+            InlineKeyboardButton("⚡ Быстрые команды", callback_data="admin_quick_commands")
         ],
         
         # Технические функции
@@ -911,16 +926,28 @@ def get_admin_keyboard():
             InlineKeyboardButton("🖥️ Статус сервера", callback_data="admin_server_status")
         ],
         
+        # История и плагины
+        [
+            InlineKeyboardButton("📜 История действий", callback_data="admin_history"),
+            InlineKeyboardButton("🧩 Плагины", callback_data="admin_plugins")
+        ],
+        
+        # Marketplace и обновления
+        [
+            InlineKeyboardButton("🛒 Маркетплейс", callback_data="admin_marketplace"),
+            InlineKeyboardButton("🔄 Обновить БД", callback_data="admin_update_db")
+        ],
+        
         # Безопасность и обслуживание
         [
             InlineKeyboardButton("🔐 Сменить пароль", callback_data="admin_change_password"),
-            InlineKeyboardButton("🔄 Обновить БД", callback_data="admin_update_db")
+            InlineKeyboardButton("ℹ️ О боте", callback_data="admin_about")
         ],
         
         # Разное
         [
             InlineKeyboardButton("🌐 Сменить язык", callback_data="change_language"),
-            InlineKeyboardButton("ℹ️ О боте", callback_data="admin_about")
+            InlineKeyboardButton("↩️ Выход", callback_data="return_to_main")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -1109,6 +1136,147 @@ async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             ]])
         )
         return ADMIN_SEARCH_USER
+    
+    elif action == "admin_message_to_pending":
+        # Отправка сообщения неодобренным пользователям
+        pending_users = get_pending_users()
+        count = len(pending_users) if pending_users else 0
+        
+        keyboard = [
+            [InlineKeyboardButton("📩 Отправить всем неодобренным", callback_data="send_to_all_pending")],
+            [InlineKeyboardButton("👤 Выбрать конкретных пользователей", callback_data="select_pending_users")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            f"📩 Отправка сообщений неодобренным пользователям\n\n"
+            f"Всего неодобренных пользователей: {count}\n\n"
+            f"Выберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_MESSAGE_TO_PENDING
+    
+    elif action == "admin_select_users":
+        # Выбор пользователей для отправки сообщения
+        all_users = get_all_users()
+        count = len(all_users) if all_users else 0
+        
+        keyboard = [
+            [InlineKeyboardButton("🔍 Поиск по критериям", callback_data="search_users_criteria")],
+            [InlineKeyboardButton("📋 Выбрать из списка", callback_data="select_from_list")],
+            [InlineKeyboardButton("📊 Сегментация по активности", callback_data="segment_by_activity")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            f"👥 Выбор пользователей для отправки сообщения\n\n"
+            f"Всего пользователей в базе: {count}\n\n"
+            f"Выберите метод выбора пользователей:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_SELECT_USERS
+    
+    elif action == "admin_content_manager":
+        # Управление контентом бота
+        keyboard = [
+            [InlineKeyboardButton("📷 Управление изображениями", callback_data="manage_images")],
+            [InlineKeyboardButton("📊 Управление графиками", callback_data="manage_charts")],
+            [InlineKeyboardButton("🎞️ Управление видео", callback_data="manage_videos")],
+            [InlineKeyboardButton("📎 Управление файлами", callback_data="manage_files")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "📑 Управление контентом\n\n"
+            "Выберите категорию контента для управления:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif action == "admin_statistics":
+        # Расширенная аналитика бота
+        keyboard = [
+            [InlineKeyboardButton("📊 Активность пользователей", callback_data="stats_user_activity")],
+            [InlineKeyboardButton("📈 Рост аудитории", callback_data="stats_audience_growth")],
+            [InlineKeyboardButton("🔄 Конверсия регистраций", callback_data="stats_registration_conversion")],
+            [InlineKeyboardButton("📉 Отток пользователей", callback_data="stats_user_churn")],
+            [InlineKeyboardButton("🔍 Детализация по странам", callback_data="stats_by_country")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "📊 Расширенная аналитика\n\n"
+            "Выберите тип статистики для просмотра:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_STATISTICS
+    
+    elif action == "admin_quick_commands":
+        # Быстрые команды для администратора
+        keyboard = [
+            [InlineKeyboardButton("🔄 Перезагрузить бота", callback_data="quick_restart_bot")],
+            [InlineKeyboardButton("🧹 Очистить кэш", callback_data="quick_clear_cache")],
+            [InlineKeyboardButton("📊 Сгенерировать отчет", callback_data="quick_generate_report")],
+            [InlineKeyboardButton("📧 Проверить почту", callback_data="quick_check_mail")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "⚡ Быстрые команды\n\n"
+            "Выберите команду для выполнения:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_QUICK_COMMANDS
+    
+    elif action == "admin_history":
+        # История действий администратора
+        keyboard = [
+            [InlineKeyboardButton("📜 Действия пользователей", callback_data="history_user_actions")],
+            [InlineKeyboardButton("🛠️ Действия администратора", callback_data="history_admin_actions")],
+            [InlineKeyboardButton("🔄 Системные события", callback_data="history_system_events")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "📜 История действий\n\n"
+            "Выберите категорию истории для просмотра:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_HISTORY
+    
+    elif action == "admin_plugins":
+        # Управление плагинами бота
+        keyboard = [
+            [InlineKeyboardButton("📋 Установленные плагины", callback_data="plugins_installed")],
+            [InlineKeyboardButton("➕ Установить плагин", callback_data="plugins_install")],
+            [InlineKeyboardButton("❌ Удалить плагин", callback_data="plugins_remove")],
+            [InlineKeyboardButton("🔄 Обновить плагины", callback_data="plugins_update")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "🧩 Управление плагинами\n\n"
+            "Выберите действие с плагинами:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_PLUGINS
+    
+    elif action == "admin_marketplace":
+        # Маркетплейс расширений для бота
+        keyboard = [
+            [InlineKeyboardButton("🛒 Обзор маркетплейса", callback_data="marketplace_browse")],
+            [InlineKeyboardButton("🔍 Поиск расширений", callback_data="marketplace_search")],
+            [InlineKeyboardButton("⭐ Популярные расширения", callback_data="marketplace_popular")],
+            [InlineKeyboardButton("🆕 Новые расширения", callback_data="marketplace_new")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "🛒 Маркетплейс расширений\n\n"
+            "Выберите раздел маркетплейса:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_MARKETPLACE
         
     elif action == "admin_otc_signals":
         # Управление OTC сигналами для Pocket Option
@@ -3439,6 +3607,33 @@ def main():
                     ],
                     ADMIN_PROXY: [
                         CallbackQueryHandler(admin_proxy_handler)
+                    ],
+                    # Добавляем новые обработчики для новых функций
+                    ADMIN_MESSAGE_TO_PENDING: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, admin_message_to_pending_handler),
+                        CallbackQueryHandler(admin_message_to_pending_handler)
+                    ],
+                    ADMIN_SELECT_USERS: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, admin_select_users_handler),
+                        CallbackQueryHandler(admin_select_users_handler)
+                    ],
+                    ADMIN_CONTENT_MANAGER: [
+                        CallbackQueryHandler(admin_content_manager_handler)
+                    ],
+                    ADMIN_STATISTICS: [
+                        CallbackQueryHandler(admin_statistics_handler)
+                    ],
+                    ADMIN_QUICK_COMMANDS: [
+                        CallbackQueryHandler(admin_quick_commands_handler)
+                    ],
+                    ADMIN_HISTORY: [
+                        CallbackQueryHandler(admin_history_handler)
+                    ],
+                    ADMIN_PLUGINS: [
+                        CallbackQueryHandler(admin_plugins_handler)
+                    ],
+                    ADMIN_MARKETPLACE: [
+                        CallbackQueryHandler(admin_marketplace_handler)
                     ]
                 },
                 fallbacks=[CommandHandler("start", start)]
@@ -4092,14 +4287,23 @@ async def handle_otc_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Определяем язык пользователя
         lang_code = user_data.get('language_code', 'tg')
         
-        # Список OTC пар для Pocket Option
+        # Расширенный список OTC пар для Pocket Option
         otc_pairs = [
             ["EUR/USD OTC", "GBP/USD OTC"],
             ["EUR/CAD OTC", "AUD/CAD OTC"],
             ["USD/CHF OTC", "GBP/JPY OTC"],
             ["USD/JPY OTC", "AUD/JPY OTC"],
             ["EUR/JPY OTC", "USD/CAD OTC"],
-            ["GBP/CHF OTC", "NZD/USD OTC"]
+            ["GBP/CHF OTC", "NZD/USD OTC"],
+            # Добавленные новые пары
+            ["AUD/USD OTC", "USD/SGD OTC"],
+            ["EUR/GBP OTC", "CHF/JPY OTC"],
+            ["EUR/AUD OTC", "EUR/NZD OTC"],
+            ["AUD/NZD OTC", "CAD/JPY OTC"],
+            ["AUD/CHF OTC", "NZD/JPY OTC"],
+            ["EUR/SGD OTC", "USD/NOK OTC"],
+            ["GBP/AUD OTC", "GBP/CAD OTC"],
+            ["GBP/NZD OTC", "USD/SEK OTC"]
         ]
         
         # Создаем клавиатуру с OTC парами
@@ -4154,12 +4358,18 @@ async def handle_otc_signals(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Дата для сообщения
         current_time = datetime.now().strftime("%H:%M:%S")
         
-        # Список текущих OTC сигналов (примеры)
+        # Расширенный список текущих OTC сигналов
         otc_signals = [
             {"pair": "EUR/USD OTC", "direction": "BUY", "confidence": 78, "expiry": "18:45"},
             {"pair": "GBP/JPY OTC", "direction": "SELL", "confidence": 75, "expiry": "19:00"},
             {"pair": "AUD/CAD OTC", "direction": "BUY", "confidence": 82, "expiry": "19:15"},
-            {"pair": "USD/CHF OTC", "direction": "SELL", "confidence": 80, "expiry": "19:30"}
+            {"pair": "USD/CHF OTC", "direction": "SELL", "confidence": 80, "expiry": "19:30"},
+            {"pair": "AUD/USD OTC", "direction": "BUY", "confidence": 79, "expiry": "19:45"},
+            {"pair": "EUR/GBP OTC", "direction": "SELL", "confidence": 77, "expiry": "20:00"},
+            {"pair": "USD/SGD OTC", "direction": "BUY", "confidence": 81, "expiry": "20:15"},
+            {"pair": "CHF/JPY OTC", "direction": "SELL", "confidence": 76, "expiry": "20:30"},
+            {"pair": "EUR/AUD OTC", "direction": "BUY", "confidence": 83, "expiry": "20:45"},
+            {"pair": "EUR/NZD OTC", "direction": "SELL", "confidence": 79, "expiry": "21:00"}
         ]
         
         # Формируем текст сообщения с сигналами
