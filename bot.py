@@ -1895,9 +1895,16 @@ def main():
     while True:  # Infinite loop for continuous operation
         try:
             # Start the keep-alive server
+            from keep_alive import keep_alive
             keep_alive()
             logger.info("Starting bot...")
 
+            # Проверка наличия токена
+            if not BOT_TOKEN:
+                logger.error("BOT_TOKEN is not set. Please check your environment variables.")
+                continue
+
+            # Создание приложения с токеном
             application = Application.builder().token(BOT_TOKEN).build()
 
             # Add handlers
