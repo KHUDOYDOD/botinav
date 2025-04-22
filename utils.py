@@ -86,6 +86,38 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
         'en': '🏠 Return to Main'
     }
 
+    # Add OTC Pocket Option section
+    otc_button_text = {
+        'tg': '📱 OTC Pocket Option',
+        'ru': '📱 OTC Pocket Option',
+        'uz': '📱 OTC Pocket Option',
+        'kk': '📱 OTC Pocket Option',
+        'en': '📱 OTC Pocket Option'
+    }
+    
+    otc_signals_text = {
+        'tg': '🔔 OTC сигналы',
+        'ru': '🔔 OTC сигналы',
+        'uz': '🔔 OTC signallar',
+        'kk': '🔔 OTC сигналдар',
+        'en': '🔔 OTC signals'
+    }
+    
+    # Add OTC section with header
+    keyboard.append([InlineKeyboardButton("📊 OTC Pocket Option", callback_data="header_otc")])
+    
+    # Add OTC button row
+    keyboard.append([
+        InlineKeyboardButton(
+            otc_button_text.get(current_lang, otc_button_text['tg']),
+            callback_data="otc_pairs"
+        ),
+        InlineKeyboardButton(
+            otc_signals_text.get(current_lang, otc_signals_text['tg']),
+            callback_data="otc_signals"
+        )
+    ])
+    
     # Add language and return buttons
     keyboard.append([
         InlineKeyboardButton(

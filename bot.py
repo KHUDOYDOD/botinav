@@ -4,6 +4,8 @@ import time
 import os
 import sys
 import random
+import asyncio
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, ConversationHandler
 from config import *
@@ -394,6 +396,20 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_admin = user_data and user_data.get('is_admin', False)
         is_moderator = user_data and user_data.get('is_moderator', False)
         is_approved = user_data and user_data.get('is_approved')
+        
+        # Обработка OTC Pocket Option кнопок
+        if query.data == "otc_pairs":
+            await handle_otc_pairs(update, context)
+            return
+            
+        if query.data == "otc_signals":
+            await handle_otc_signals(update, context)
+            return
+            
+        # Обработка конкретных OTC пар
+        if query.data.startswith("otc_") and "refresh" not in query.data and "subscribe" not in query.data and "settings" not in query.data:
+            await handle_otc_pair_analysis(update, context)
+            return
         
         # Обработка кнопок админ-панели и модератор-панели
         if query.data == "admin_panel":
@@ -4060,6 +4076,211 @@ async def admin_proxy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return ADMIN_PROXY
+
+async def handle_otc_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для OTC Pocket Option пар"""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    try:
+        # Получаем данные пользователя для проверки доступа
+        user_data = get_user(user_id)
+        if not user_data or not user_data.get('is_approved'):
+            await query.answer("⛔ У вас нет доступа к этой функции. Отправьте заявку на регистрацию.")
+            return
+        
+        # Определяем язык пользователя
+        lang_code = user_data.get('language_code', 'tg')
+        
+        # Список OTC пар для Pocket Option
+        otc_pairs = [
+            ["EUR/USD OTC", "GBP/USD OTC"],
+            ["EUR/CAD OTC", "AUD/CAD OTC"],
+            ["USD/CHF OTC", "GBP/JPY OTC"],
+            ["USD/JPY OTC", "AUD/JPY OTC"],
+            ["EUR/JPY OTC", "USD/CAD OTC"],
+            ["GBP/CHF OTC", "NZD/USD OTC"]
+        ]
+        
+        # Создаем клавиатуру с OTC парами
+        keyboard = []
+        
+        # Заголовок для OTC пар
+        keyboard.append([InlineKeyboardButton("📊 OTC Pocket Option", callback_data="header_otc_pairs")])
+        
+        # Добавляем все OTC пары
+        for pair_row in otc_pairs:
+            buttons_row = []
+            for pair in pair_row:
+                buttons_row.append(InlineKeyboardButton(pair, callback_data=f"otc_{pair.replace('/', '_')}")), 
+            keyboard.append(buttons_row)
+            
+        # Добавляем кнопку навигации назад
+        keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="return_to_main")])
+        
+        # Отправляем сообщение с клавиатурой
+        await query.edit_message_text(
+            "📱 *OTC Pocket Option*\n\n"
+            "Выберите торговую пару для анализа:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in OTC pairs handler: {e}")
+        await query.answer(f"Произошла ошибка: {str(e)}")
+
+async def handle_otc_signals(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для OTC сигналов"""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    try:
+        # Получаем данные пользователя для проверки доступа
+        user_data = get_user(user_id)
+        if not user_data or not user_data.get('is_approved'):
+            await query.answer("⛔ У вас нет доступа к этой функции. Отправьте заявку на регистрацию.")
+            return
+        
+        # Определяем язык пользователя
+        lang_code = user_data.get('language_code', 'tg')
+        
+        # Создаем клавиатуру для сигналов
+        keyboard = []
+        
+        # Заголовок для OTC сигналов
+        keyboard.append([InlineKeyboardButton("🔔 OTC сигналы", callback_data="header_otc_signals")])
+        
+        # Дата для сообщения
+        current_time = datetime.now().strftime("%H:%M:%S")
+        
+        # Список текущих OTC сигналов (примеры)
+        otc_signals = [
+            {"pair": "EUR/USD OTC", "direction": "BUY", "confidence": 78, "expiry": "18:45"},
+            {"pair": "GBP/JPY OTC", "direction": "SELL", "confidence": 75, "expiry": "19:00"},
+            {"pair": "AUD/CAD OTC", "direction": "BUY", "confidence": 82, "expiry": "19:15"},
+            {"pair": "USD/CHF OTC", "direction": "SELL", "confidence": 80, "expiry": "19:30"}
+        ]
+        
+        # Формируем текст сообщения с сигналами
+        signals_text = f"📱 *OTC Pocket Option Сигналы*\n\n⏰ Время обновления: {current_time}\n\n"
+        
+        for idx, signal in enumerate(otc_signals, 1):
+            direction_emoji = "⬆️" if signal["direction"] == "BUY" else "⬇️"
+            signals_text += f"{idx}. {signal['pair']} - {direction_emoji} {signal['direction']} ({signal['confidence']}%) - {signal['expiry']}\n"
+        
+        signals_text += "\n⚠️ *Используйте на свой страх и риск. Не является финансовой рекомендацией.*"
+        
+        # Добавляем кнопки действий
+        keyboard.append([
+            InlineKeyboardButton("🔄 Обновить", callback_data="otc_refresh_signals"),
+            InlineKeyboardButton("⚙️ Настройки", callback_data="otc_signal_settings")
+        ])
+        
+        # Добавляем кнопку подписки на сигналы
+        keyboard.append([InlineKeyboardButton("🔔 Подписаться на сигналы", callback_data="otc_subscribe")])
+        
+        # Добавляем кнопку навигации назад
+        keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="return_to_main")])
+        
+        # Отправляем сообщение с клавиатурой
+        await query.edit_message_text(
+            signals_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in OTC signals handler: {e}")
+        await query.answer(f"Произошла ошибка: {str(e)}")
+
+async def handle_otc_pair_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для анализа конкретной OTC пары"""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    try:
+        # Получаем данные пользователя для проверки доступа
+        user_data = get_user(user_id)
+        if not user_data or not user_data.get('is_approved'):
+            await query.answer("⛔ У вас нет доступа к этой функции. Отправьте заявку на регистрацию.")
+            return
+        
+        # Определяем язык пользователя
+        lang_code = user_data.get('language_code', 'tg')
+        
+        # Получаем выбранную пару
+        pair_data = query.data.replace("otc_", "").replace("_", "/")
+        
+        # Отправляем сообщение о начале анализа
+        await query.edit_message_text(
+            f"⏳ Анализируем {pair_data}...\n\n"
+            "Пожалуйста, подождите..."
+        )
+        
+        # Симулируем анализ (в реальном боте здесь будет настоящий анализ)
+        await asyncio.sleep(2)  # Имитация загрузки данных
+        
+        # Создаем фиктивный результат анализа
+        direction = random.choice(["BUY", "SELL"])
+        confidence = random.randint(70, 90)
+        
+        # Создаем клавиатуру для результата анализа
+        keyboard = []
+        
+        # Добавляем кнопки действий
+        keyboard.append([
+            InlineKeyboardButton("🔄 Обновить анализ", callback_data=f"otc_{pair_data.replace('/', '_')}"),
+            InlineKeyboardButton("📊 Больше данных", callback_data=f"otc_more_{pair_data.replace('/', '_')}")
+        ])
+        
+        # Добавляем только кнопки "на главную страницу" и "сменить язык"
+        keyboard.append([
+            InlineKeyboardButton("🏠 На главную", callback_data="return_to_main")
+        ])
+        
+        keyboard.append([
+            InlineKeyboardButton("🌐 Сменить язык", callback_data="change_language")
+        ])
+        
+        # Время экспирации (5-10 минут от текущего времени)
+        expiry_minutes = random.randint(5, 10)
+        expiry_time = (datetime.now() + timedelta(minutes=expiry_minutes)).strftime("%H:%M")
+        
+        # Данные индикаторов
+        rsi = random.randint(25, 75)
+        macd = round(random.uniform(-0.01, 0.01), 4)
+        bb_positions = ["нижняя граница", "средняя", "верхняя граница"]
+        bb_position = random.choice(bb_positions)
+        
+        # Направление с эмодзи
+        direction_emoji = "⬆️" if direction == "BUY" else "⬇️"
+        
+        # Формируем текст сообщения с результатом анализа
+        result_text = (
+            f"📊 *Анализ {pair_data}*\n\n"
+            f"🎯 Сигнал: {direction_emoji} *{direction}*\n"
+            f"📈 Уверенность: *{confidence}%*\n"
+            f"⏰ Время экспирации: *{expiry_time}* (через {expiry_minutes} мин)\n\n"
+            f"📉 *Индикаторы:*\n"
+            f"• RSI: `{rsi}`\n"
+            f"• MACD: `{macd}`\n"
+            f"• Bollinger Bands: `{bb_position}`\n\n"
+            f"🔍 *Рекомендация:*\n"
+            f"{direction_emoji} Рекомендуется открыть сделку *{direction}* на {expiry_minutes} минут с вероятностью {confidence}%\n\n"
+            f"⚠️ *Торговля сопряжена с рисками. Используйте на свой страх и риск.*"
+        )
+        
+        # Отправляем сообщение с результатом анализа
+        await query.edit_message_text(
+            result_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in OTC pair analysis handler: {e}")
+        await query.answer(f"Произошла ошибка: {str(e)}")
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors in the telegram bot."""
