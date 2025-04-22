@@ -302,6 +302,42 @@ def get_all_user_ids():
     except Exception as e:
         logger.error(f"Error getting all user IDs: {e}")
         return []
+        
+def get_user_by_username(username: str):
+    """Найти пользователя по имени пользователя."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # Попробуем найти точное совпадение
+                cur.execute("""
+                    SELECT user_id, username, is_admin, is_approved
+                    FROM users
+                    WHERE username = %s
+                """, (username,))
+                result = cur.fetchone()
+                
+                # Если не нашли, ищем по частичному совпадению
+                if not result:
+                    cur.execute("""
+                        SELECT user_id, username, is_admin, is_approved
+                        FROM users
+                        WHERE username LIKE %s
+                        LIMIT 5
+                    """, (f"%{username}%",))
+                    results = cur.fetchall()
+                    if results:
+                        return [{'user_id': row[0], 'username': row[1], 'is_admin': row[2], 'is_approved': row[3]} for row in results]
+                    return None
+                
+                return {
+                    'user_id': result[0],
+                    'username': result[1],
+                    'is_admin': result[2],
+                    'is_approved': result[3]
+                }
+    except Exception as e:
+        logger.error(f"Error searching user by username: {e}")
+        return None
 
 def get_pending_users():
     """Получить всех пользователей, ожидающих одобрения."""

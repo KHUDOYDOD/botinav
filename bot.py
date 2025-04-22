@@ -47,6 +47,9 @@ ADMIN_TEXT_MANAGEMENT, ADMIN_TEXT_ADD, ADMIN_TEXT_EDIT = range(7, 10)
 ADMIN_ACTIVITY, ADMIN_SETTINGS, ADMIN_CHANGE_PASSWORD, ADMIN_ABOUT = range(10, 14)
 ADMIN_EXPORT_DATA, ADMIN_IMPORT_DATA, ADMIN_LOGS, ADMIN_SERVER_STATUS = range(14, 18)
 ADMIN_USER_ANALYTICS, ADMIN_SIGNAL_MANAGEMENT, ADMIN_DIRECT_MESSAGE = range(18, 21)
+ADMIN_SEARCH_USER, ADMIN_OTC_SIGNALS, ADMIN_TRADING_VIEW = range(21, 24)
+ADMIN_SCHEDULER, ADMIN_API, ADMIN_SECURITY, ADMIN_PROXY, ADMIN_AUTO_SIGNALS = range(24, 29)
+ADMIN_SEND_MESSAGE_TO_USER = 29
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -845,6 +848,18 @@ def get_admin_keyboard():
             InlineKeyboardButton("📨 Рассылка сообщений", callback_data="admin_broadcast")
         ],
         
+        # Новые функции мессенджинга
+        [
+            InlineKeyboardButton("🔍 Поиск пользователя", callback_data="admin_search_user"),
+            InlineKeyboardButton("📩 Прямое сообщение", callback_data="admin_direct_message")
+        ],
+        
+        # OTC и платформы
+        [
+            InlineKeyboardButton("📱 OTC Pocket Option", callback_data="admin_otc_signals"),
+            InlineKeyboardButton("📊 Trading View", callback_data="admin_trading_view")
+        ],
+        
         # Аналитические функции и настройки
         [InlineKeyboardButton("📊 Статистика бота", callback_data="admin_stats")],
         [
@@ -856,6 +871,18 @@ def get_admin_keyboard():
         [
             InlineKeyboardButton("📊 Управление сигналами", callback_data="admin_signals"),
             InlineKeyboardButton("👤 Аналитика пользователей", callback_data="admin_user_analytics")
+        ],
+        
+        # Автоматизация и API
+        [
+            InlineKeyboardButton("⏱️ Планировщик задач", callback_data="admin_scheduler"),
+            InlineKeyboardButton("🔌 API интеграции", callback_data="admin_api")
+        ],
+        
+        # Технические функции
+        [
+            InlineKeyboardButton("🔒 Безопасность", callback_data="admin_security"),
+            InlineKeyboardButton("🌐 Прокси", callback_data="admin_proxy")
         ],
         
         # Данные и логирование
@@ -1044,6 +1071,45 @@ async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return ADMIN_BROADCAST_MESSAGE
+        
+    elif action == "admin_direct_message":
+        # Прямое сообщение конкретному пользователю
+        await query.edit_message_text(
+            "📩 Отправка прямого сообщения\n\n"
+            "Введите ID пользователя, которому хотите отправить сообщение:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ]])
+        )
+        return ADMIN_DIRECT_MESSAGE
+    
+    elif action == "admin_search_user":
+        # Поиск пользователя
+        await query.edit_message_text(
+            "🔎 Поиск пользователя\n\n"
+            "Введите имя пользователя или ID для поиска:",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ]])
+        )
+        return ADMIN_SEARCH_USER
+        
+    elif action == "admin_otc_signals":
+        # Управление OTC сигналами для Pocket Option
+        keyboard = [
+            [InlineKeyboardButton("🔍 Просмотр активных сигналов", callback_data="otc_view_active")],
+            [InlineKeyboardButton("➕ Добавить новый сигнал", callback_data="otc_add_signal")],
+            [InlineKeyboardButton("⚙️ Настройки OTC", callback_data="otc_settings")],
+            [InlineKeyboardButton("📊 Статистика сигналов", callback_data="otc_stats")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "📱 Управление OTC сигналами для Pocket Option\n\n"
+            "Выберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
     
     elif action == "admin_stats":
         # Показать статистику
@@ -3329,8 +3395,34 @@ def main():
                     ADMIN_USER_ANALYTICS: [CallbackQueryHandler(admin_user_analytics)],
                     ADMIN_SIGNAL_MANAGEMENT: [CallbackQueryHandler(admin_signals)],
                     ADMIN_DIRECT_MESSAGE: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, admin_direct_message_handler),
+                        CallbackQueryHandler(admin_direct_message_handler)
+                    ],
+                    ADMIN_SEND_MESSAGE_TO_USER: [
                         MessageHandler(filters.TEXT & ~filters.COMMAND, admin_send_message_to_user),
                         CallbackQueryHandler(admin_send_message_to_user)
+                    ],
+                    ADMIN_SEARCH_USER: [
+                        MessageHandler(filters.TEXT & ~filters.COMMAND, admin_search_user_handler),
+                        CallbackQueryHandler(admin_search_user_handler)
+                    ],
+                    ADMIN_OTC_SIGNALS: [
+                        CallbackQueryHandler(admin_otc_signals_handler)
+                    ],
+                    ADMIN_TRADING_VIEW: [
+                        CallbackQueryHandler(admin_trading_view_handler)
+                    ],
+                    ADMIN_SCHEDULER: [
+                        CallbackQueryHandler(admin_scheduler_handler)
+                    ],
+                    ADMIN_API: [
+                        CallbackQueryHandler(admin_api_handler)
+                    ],
+                    ADMIN_SECURITY: [
+                        CallbackQueryHandler(admin_security_handler)
+                    ],
+                    ADMIN_PROXY: [
+                        CallbackQueryHandler(admin_proxy_handler)
                     ]
                 },
                 fallbacks=[CommandHandler("start", start)]
@@ -3396,6 +3488,578 @@ def main():
         finally:
             # Reset reconnect delay on successful connection
             reconnect_delay = 5
+
+async def admin_direct_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик функции прямого сообщения пользователю"""
+    query = update.callback_query
+    
+    if query:
+        await query.answer()
+        if query.data == "admin_back":
+            await query.edit_message_text(
+                "👑 Панель администратора",
+                reply_markup=get_admin_keyboard()
+            )
+            return ADMIN_MENU
+        return ADMIN_DIRECT_MESSAGE
+    
+    if update.message:
+        user_id_text = update.message.text.strip()
+        
+        try:
+            # Проверяем, является ли введенный текст числом (ID пользователя)
+            user_id = int(user_id_text)
+            
+            # Проверяем существование пользователя
+            user_info = get_user(user_id)
+            if not user_info:
+                await update.message.reply_text(
+                    f"❌ Пользователь с ID {user_id} не найден в базе данных.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_DIRECT_MESSAGE
+            
+            # Сохраняем ID пользователя для отправки сообщения
+            context.user_data['admin_recipient_id'] = user_id
+            
+            # Запрашиваем текст сообщения
+            username = user_info.get('username', 'Без имени')
+            is_approved = "✅ Подтвержден" if user_info.get('is_approved') else "⏳ Не подтвержден"
+            
+            await update.message.reply_text(
+                f"📩 Отправка сообщения пользователю:\n"
+                f"👤 Имя: {username}\n"
+                f"🆔 ID: {user_id}\n"
+                f"Статус: {is_approved}\n\n"
+                f"Введите текст сообщения, которое хотите отправить:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_SEND_MESSAGE_TO_USER
+        
+        except ValueError:
+            # Если введен не числовой ID
+            await update.message.reply_text(
+                "❌ Ошибка: введите корректный ID пользователя (числовое значение).",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_DIRECT_MESSAGE
+        except Exception as e:
+            logger.error(f"Error in direct message handler: {e}")
+            await update.message.reply_text(
+                f"❌ Ошибка: {str(e)}",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_DIRECT_MESSAGE
+    
+    return ADMIN_DIRECT_MESSAGE
+
+async def admin_search_user_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик поиска пользователей"""
+    query = update.callback_query
+    
+    if query:
+        await query.answer()
+        if query.data == "admin_back":
+            await query.edit_message_text(
+                "👑 Панель администратора",
+                reply_markup=get_admin_keyboard()
+            )
+            return ADMIN_MENU
+        
+        # Обработка других действий с результатами поиска
+        if query.data.startswith("user_select_"):
+            user_id = int(query.data.replace("user_select_", ""))
+            context.user_data['admin_recipient_id'] = user_id
+            
+            user_info = get_user(user_id)
+            if user_info:
+                username = user_info.get('username', 'Без имени')
+                is_approved = "✅ Подтвержден" if user_info.get('is_approved') else "⏳ Не подтвержден"
+                is_admin = "👑 Да" if user_info.get('is_admin') else "👤 Нет"
+                created_at = user_info.get('created_at', 'Неизвестно')
+                
+                user_keyboard = []
+                
+                # Кнопки действий с пользователем
+                if user_info.get('is_approved'):
+                    user_keyboard.append([
+                        InlineKeyboardButton("📩 Отправить сообщение", callback_data=f"user_message_{user_id}"),
+                        InlineKeyboardButton("🚫 Сбросить доступ", callback_data=f"user_reset_{user_id}")
+                    ])
+                else:
+                    user_keyboard.append([
+                        InlineKeyboardButton("✅ Одобрить", callback_data=f"approve_{user_id}"),
+                        InlineKeyboardButton("📩 Отправить сообщение", callback_data=f"user_message_{user_id}")
+                    ])
+                
+                if not user_info.get('is_admin'):
+                    user_keyboard.append([
+                        InlineKeyboardButton("👑 Сделать админом", callback_data=f"user_admin_{user_id}"),
+                        InlineKeyboardButton("❌ Удалить", callback_data=f"user_delete_{user_id}")
+                    ])
+                
+                user_keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="admin_back")])
+                
+                await query.edit_message_text(
+                    f"👤 Информация о пользователе:\n\n"
+                    f"🔹 Имя: {username}\n"
+                    f"🔹 ID: {user_id}\n"
+                    f"🔹 Статус: {is_approved}\n"
+                    f"🔹 Администратор: {is_admin}\n"
+                    f"🔹 Дата регистрации: {created_at}\n",
+                    reply_markup=InlineKeyboardMarkup(user_keyboard)
+                )
+                return ADMIN_USER_MANAGEMENT
+        
+        # Если выбрали отправку сообщения пользователю
+        if query.data.startswith("user_message_"):
+            user_id = int(query.data.replace("user_message_", ""))
+            context.user_data['admin_recipient_id'] = user_id
+            
+            user_info = get_user(user_id)
+            if user_info:
+                username = user_info.get('username', 'Без имени')
+                is_approved = "✅ Подтвержден" if user_info.get('is_approved') else "⏳ Не подтвержден"
+                
+                await query.edit_message_text(
+                    f"📩 Отправка сообщения пользователю:\n"
+                    f"👤 Имя: {username}\n"
+                    f"🆔 ID: {user_id}\n"
+                    f"Статус: {is_approved}\n\n"
+                    f"Введите текст сообщения, которое хотите отправить:",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_SEND_MESSAGE_TO_USER
+        
+        return ADMIN_SEARCH_USER
+    
+    if update.message:
+        search_query = update.message.text.strip()
+        
+        try:
+            # Пробуем найти по числовому ID
+            try:
+                user_id = int(search_query)
+                user = get_user(user_id)
+                if user:
+                    users = [user]
+                else:
+                    users = []
+            except ValueError:
+                # Ищем по имени пользователя
+                users = get_user_by_username(search_query)
+                if not isinstance(users, list):
+                    users = [users] if users else []
+            
+            if not users:
+                await update.message.reply_text(
+                    f"🔍 По запросу '{search_query}' ничего не найдено.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_SEARCH_USER
+            
+            if len(users) == 1:
+                # Если найден только один пользователь, показываем его профиль
+                user = users[0]
+                user_id = user['user_id']
+                username = user.get('username', 'Без имени')
+                is_approved = "✅ Подтвержден" if user.get('is_approved') else "⏳ Не подтвержден"
+                is_admin = "👑 Да" if user.get('is_admin') else "👤 Нет"
+                
+                user_keyboard = []
+                
+                # Кнопки действий с пользователем
+                if user.get('is_approved'):
+                    user_keyboard.append([
+                        InlineKeyboardButton("📩 Отправить сообщение", callback_data=f"user_message_{user_id}"),
+                        InlineKeyboardButton("🚫 Сбросить доступ", callback_data=f"user_reset_{user_id}")
+                    ])
+                else:
+                    user_keyboard.append([
+                        InlineKeyboardButton("✅ Одобрить", callback_data=f"approve_{user_id}"),
+                        InlineKeyboardButton("📩 Отправить сообщение", callback_data=f"user_message_{user_id}")
+                    ])
+                
+                if not user.get('is_admin'):
+                    user_keyboard.append([
+                        InlineKeyboardButton("👑 Сделать админом", callback_data=f"user_admin_{user_id}"),
+                        InlineKeyboardButton("❌ Удалить", callback_data=f"user_delete_{user_id}")
+                    ])
+                
+                user_keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="admin_back")])
+                
+                await update.message.reply_text(
+                    f"👤 Информация о пользователе:\n\n"
+                    f"🔹 Имя: {username}\n"
+                    f"🔹 ID: {user_id}\n"
+                    f"🔹 Статус: {is_approved}\n"
+                    f"🔹 Администратор: {is_admin}\n",
+                    reply_markup=InlineKeyboardMarkup(user_keyboard)
+                )
+                return ADMIN_USER_MANAGEMENT
+            else:
+                # Если найдено несколько пользователей, показываем список
+                keyboard = []
+                for user in users:
+                    user_id = user['user_id']
+                    username = user.get('username', 'Без имени')
+                    status = "✅" if user.get('is_approved') else "⏳"
+                    keyboard.append([
+                        InlineKeyboardButton(f"{status} {username} (ID: {user_id})", callback_data=f"user_select_{user_id}")
+                    ])
+                
+                keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="admin_back")])
+                
+                await update.message.reply_text(
+                    f"🔍 Результаты поиска по запросу '{search_query}':\n"
+                    f"Найдено пользователей: {len(users)}\n\n"
+                    f"Выберите пользователя для просмотра:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                return ADMIN_SEARCH_USER
+        
+        except Exception as e:
+            logger.error(f"Error in search user handler: {e}")
+            await update.message.reply_text(
+                f"❌ Ошибка при поиске: {str(e)}",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_SEARCH_USER
+    
+    return ADMIN_SEARCH_USER
+
+async def admin_otc_signals_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик управления OTC сигналами для Pocket Option"""
+    query = update.callback_query
+    
+    if not query:
+        return ADMIN_OTC_SIGNALS
+    
+    await query.answer()
+    action = query.data
+    
+    if action == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    elif action == "otc_view_active":
+        # Здесь будет код для просмотра активных OTC сигналов
+        otc_signals_text = (
+            "🔍 Активные OTC сигналы для Pocket Option\n\n"
+            "📊 Текущие торговые сигналы:\n"
+            "1. EUR/USD - ⬆️ ВВЕРХ (80%) - 18:45\n"
+            "2. GBP/JPY - ⬇️ ВНИЗ (75%) - 19:00\n"
+            "3. AUD/CAD - ⬆️ ВВЕРХ (78%) - 19:15\n"
+            "4. USD/CHF - ⬇️ ВНИЗ (82%) - 19:30\n\n"
+            "⏱ Последнее обновление: 18:30"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("🔄 Обновить", callback_data="otc_refresh")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_otc_signals")]
+        ]
+        
+        await query.edit_message_text(
+            otc_signals_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
+    
+    elif action == "otc_add_signal":
+        # Здесь будет код для добавления нового OTC сигнала
+        add_signal_text = (
+            "➕ Добавление нового OTC сигнала\n\n"
+            "⚠️ Функция в разработке\n\n"
+            "Скоро здесь появится возможность добавлять новые торговые сигналы для OTC сессий Pocket Option с настройкой всех необходимых параметров."
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_otc_signals")]
+        ]
+        
+        await query.edit_message_text(
+            add_signal_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
+    
+    elif action == "otc_settings":
+        # Здесь будет код для настроек OTC
+        settings_text = (
+            "⚙️ Настройки OTC сигналов\n\n"
+            "🔹 Базовые параметры:\n"
+            "• Минимальный процент уверенности: 75%\n"
+            "• Автоматическая отправка: Включена\n"
+            "• Время до истечения: 5 минут\n\n"
+            "🔹 Фильтры активов:\n"
+            "• Валютные пары: Все\n"
+            "• Криптовалюты: BTC, ETH, LTC\n"
+            "• Акции: Выключены\n\n"
+            "🔹 Расписание уведомлений:\n"
+            "• Будни: 18:00 - 22:00\n"
+            "• Выходные: Выключено\n\n"
+            "⚠️ Функция в разработке"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_otc_signals")]
+        ]
+        
+        await query.edit_message_text(
+            settings_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
+    
+    elif action == "otc_stats":
+        # Здесь будет код для статистики OTC сигналов
+        stats_text = (
+            "📊 Статистика OTC сигналов\n\n"
+            "📈 Общая статистика:\n"
+            "• Всего сигналов: 120\n"
+            "• Успешных: 92 (76.7%)\n"
+            "• Неудачных: 28 (23.3%)\n\n"
+            "🏆 Топ-3 актива по успешности:\n"
+            "1. EUR/USD - 82% (31/38)\n"
+            "2. GBP/JPY - 80% (24/30)\n"
+            "3. USD/CHF - 79% (19/24)\n\n"
+            "📉 Результаты по дням недели:\n"
+            "• Пн: 75% (15/20)\n"
+            "• Вт: 80% (16/20)\n"
+            "• Ср: 78% (18/23)\n"
+            "• Чт: 82% (18/22)\n"
+            "• Пт: 69% (11/16)\n"
+            "• Сб: 75% (9/12)\n"
+            "• Вс: 71% (5/7)\n\n"
+            "⚠️ Функция в разработке"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_otc_signals")]
+        ]
+        
+        await query.edit_message_text(
+            stats_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
+    
+    else:
+        # Возвращаемся в главное меню OTC
+        keyboard = [
+            [InlineKeyboardButton("🔍 Просмотр активных сигналов", callback_data="otc_view_active")],
+            [InlineKeyboardButton("➕ Добавить новый сигнал", callback_data="otc_add_signal")],
+            [InlineKeyboardButton("⚙️ Настройки OTC", callback_data="otc_settings")],
+            [InlineKeyboardButton("📊 Статистика сигналов", callback_data="otc_stats")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+        ]
+        
+        await query.edit_message_text(
+            "📱 Управление OTC сигналами для Pocket Option\n\n"
+            "Выберите действие:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_OTC_SIGNALS
+
+async def admin_trading_view_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик интеграции с Trading View"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_TRADING_VIEW
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для интеграции с Trading View
+    trading_view_text = (
+        "📊 Интеграция с Trading View\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность интеграции с платформой Trading View "
+        "для получения и отправки профессиональных торговых сигналов на основе "
+        "индикаторов и стратегий Trading View."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        trading_view_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_TRADING_VIEW
+
+async def admin_scheduler_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик планировщика задач"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_SCHEDULER
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для планировщика задач
+    scheduler_text = (
+        "⏱️ Планировщик задач\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность настройки расписания для автоматического выполнения "
+        "различных задач, таких как:\n"
+        "• Рассылка аналитических отчетов\n"
+        "• Отправка торговых сигналов по расписанию\n"
+        "• Автоматическое обновление статистики\n"
+        "• Резервное копирование базы данных\n"
+        "и многое другое."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        scheduler_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_SCHEDULER
+
+async def admin_api_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик API интеграций"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_API
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для API интеграций
+    api_text = (
+        "🔌 API интеграции\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность настройки интеграций с различными API:\n"
+        "• Биржевые данные в реальном времени\n"
+        "• Новостные ленты финансовых рынков\n"
+        "• Сервисы аналитики и прогнозирования\n"
+        "• Брокерские платформы и терминалы\n"
+        "и многое другое."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        api_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_API
+
+async def admin_security_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик функций безопасности"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_SECURITY
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для функций безопасности
+    security_text = (
+        "🔒 Безопасность\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность настройки параметров безопасности:\n"
+        "• Двухфакторная аутентификация (2FA)\n"
+        "• Настройка политики паролей\n"
+        "• Журнал действий администраторов\n"
+        "• Ограничение доступа по IP\n"
+        "и другие функции для обеспечения безопасности вашего бота."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        security_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_SECURITY
+
+async def admin_proxy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик настроек прокси"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_PROXY
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для настроек прокси
+    proxy_text = (
+        "🌐 Настройки прокси\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность настройки прокси для API запросов:\n"
+        "• Добавление SOCKS5/HTTP прокси\n"
+        "• Ротация прокси для избежания блокировок\n"
+        "• Мониторинг работоспособности прокси\n"
+        "• Геолокационный выбор прокси\n"
+        "и другие настройки для стабильной работы бота."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        proxy_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_PROXY
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle errors in the telegram bot."""
