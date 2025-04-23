@@ -31,21 +31,19 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
             for button in admin_buttons:
                 keyboard.append([button])
 
-    # Group currency pairs by type
-    major_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if '💶' in k or '💷' in k or '💴' in k or '💰' in k}
-    crypto_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if '₿' in k or '⟠' in k or '✨' in k or '🐕' in k or '☀️' in k or '🔷' in k}
-    other_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if k not in major_pairs and k not in crypto_pairs}
+    # Add regular currency pairs button first
+    keyboard.append([InlineKeyboardButton("💱 Обычные валютные пары", callback_data="regular_pairs")])
 
-    # Add major pairs with separating row
-    keyboard.append([InlineKeyboardButton("🌟 Асъорҳои асосӣ | Основные пары", callback_data="header_major")])
-    for pair_name in major_pairs:
+    # Group and show all currency pairs
+    all_pairs = list(CURRENCY_PAIRS.keys())
+    row = []
+    for pair_name in all_pairs:
         if len(row) == 2:
             keyboard.append(row)
             row = []
         row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
     if row:
         keyboard.append(row)
-        row = []
 
     # Add crypto pairs with separating row
     keyboard.append([InlineKeyboardButton("💎 Криптоасъорҳо | Криптовалюты", callback_data="header_crypto")])
