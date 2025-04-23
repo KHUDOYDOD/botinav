@@ -32,43 +32,7 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
                 keyboard.append([button])
 
     # Add regular currency pairs button first
-    keyboard.append([InlineKeyboardButton("💱 Обычные валютные пары", callback_data="regular_pairs")])
-
-    # Group and show all currency pairs
-    all_pairs = list(CURRENCY_PAIRS.keys())
-    row = []
-    for pair_name in all_pairs:
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-        row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
-    if row:
-        keyboard.append(row)
-
-    # Add crypto pairs with separating row
-    keyboard.append([InlineKeyboardButton("💎 Криптоасъорҳо | Криптовалюты", callback_data="header_crypto")])
-    for pair_name in crypto_pairs:
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-        row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
-    if row:
-        keyboard.append(row)
-        row = []
-
-    # Add other pairs with separating row
-    keyboard.append([InlineKeyboardButton("🌏 Дигар ҷуфтҳо | Другие пары", callback_data="header_other")])
-    
-    # Выбираем некоторые пары форекс для отображения в разделе "Другие пары"
-    other_pairs_to_show = list(forex_pairs.keys())[:5]  # Берем первые 5 пар из forex_pairs
-    
-    for pair_name in other_pairs_to_show:
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-        row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
-    if row:
-        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("💱 Все валютные пары", callback_data="regular_pairs")])
 
     # Add language change button
     lang_button_text = {
