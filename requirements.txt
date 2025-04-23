@@ -61,3 +61,4 @@ requests
 seaborn
 telegram
 yfinance
+pytz

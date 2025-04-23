@@ -95,26 +95,74 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
         'en': '📱 OTC Pocket Option'
     }
     
-    otc_signals_text = {
-        'tg': '🔔 OTC сигналы',
-        'ru': '🔔 OTC сигналы',
-        'uz': '🔔 OTC signallar',
-        'kk': '🔔 OTC сигналдар',
-        'en': '🔔 OTC signals'
-    }
-    
-    # Add OTC section with header
-    keyboard.append([InlineKeyboardButton("📊 OTC Pocket Option", callback_data="header_otc")])
-    
-    # Add OTC button row
+    # Add OTC button
     keyboard.append([
         InlineKeyboardButton(
             otc_button_text.get(current_lang, otc_button_text['tg']),
             callback_data="otc_pairs"
+        )
+    ])
+    
+    # Add Trading Education section with header
+    keyboard.append([InlineKeyboardButton("📚 Trading Education", callback_data="header_trading_education")])
+    
+    # Trading books button text
+    trading_books_text = {
+        'tg': '📚 Китобҳо барои трейдинг',
+        'ru': '📚 Книги по трейдингу',
+        'uz': '📚 Treyding bo\'yicha kitoblar',
+        'kk': '📚 Трейдинг бойынша кітаптар',
+        'en': '📚 Trading Books'
+    }
+    
+    # Learning trading from scratch button text
+    trading_beginner_text = {
+        'tg': '🔰 Омӯзиши трейдинг аз сифр',
+        'ru': '🔰 Обучение трейдингу с нуля',
+        'uz': '🔰 Treyding bo\'yicha boshlang\'ich ta\'lim',
+        'kk': '🔰 Трейдингті нөлден үйрену',
+        'en': '🔰 Trading for Beginners'
+    }
+    
+    # Add Trading Education first row
+    keyboard.append([
+        InlineKeyboardButton(
+            trading_books_text.get(current_lang, trading_books_text['tg']),
+            callback_data="trading_books"
         ),
         InlineKeyboardButton(
-            otc_signals_text.get(current_lang, otc_signals_text['tg']),
-            callback_data="otc_signals"
+            trading_beginner_text.get(current_lang, trading_beginner_text['tg']),
+            callback_data="trading_beginner"
+        )
+    ])
+    
+    # Trading strategies button text
+    trading_strategies_text = {
+        'tg': '📈 Стратегияҳои трейдинг',
+        'ru': '📈 Стратегии трейдинга',
+        'uz': '📈 Treyding strategiyalari',
+        'kk': '📈 Трейдинг стратегиялары',
+        'en': '📈 Trading Strategies'
+    }
+    
+    # Trading tools button text
+    trading_tools_text = {
+        'tg': '🧰 Абзорҳои трейдинг',
+        'ru': '🧰 Инструменты трейдинга',
+        'uz': '🧰 Treyding vositalari',
+        'kk': '🧰 Трейдинг құралдары',
+        'en': '🧰 Trading Tools'
+    }
+    
+    # Add Trading Education second row
+    keyboard.append([
+        InlineKeyboardButton(
+            trading_strategies_text.get(current_lang, trading_strategies_text['tg']),
+            callback_data="trading_strategies"
+        ),
+        InlineKeyboardButton(
+            trading_tools_text.get(current_lang, trading_tools_text['tg']),
+            callback_data="trading_tools"
         )
     ])
     

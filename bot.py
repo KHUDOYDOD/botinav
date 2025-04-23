@@ -7,6 +7,7 @@ import random
 import asyncio
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters, ConversationHandler
 from config import *
 from market_analyzer import MarketAnalyzer
@@ -406,6 +407,42 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         if query.data == "otc_signals":
             await handle_otc_signals(update, context)
+            return
+            
+        # Обработка кнопок обучения трейдингу
+        if query.data == "trading_books":
+            logger.info(f"Redirecting to handle_trading_books for user {user_id}")
+            await handle_trading_books(update, context)
+            return
+            
+        if query.data.startswith("book_details_"):
+            logger.info(f"Processing book details request for user {user_id}")
+            await handle_book_details(update, context)
+            return
+            
+        if query.data == "trading_beginner":
+            logger.info(f"Redirecting to handle_trading_beginner for user {user_id}")
+            await handle_trading_beginner(update, context)
+            return
+            
+        if query.data == "trading_strategies":
+            logger.info(f"Redirecting to handle_trading_strategies for user {user_id}")
+            await handle_trading_strategies(update, context)
+            return
+            
+        if query.data.startswith("strategy_"):
+            logger.info(f"Processing strategy details for user {user_id}")
+            await handle_trading_strategies(update, context)
+            return
+            
+        if query.data == "trading_tools":
+            logger.info(f"Redirecting to handle_trading_tools for user {user_id}")
+            await handle_trading_tools(update, context)
+            return
+            
+        if query.data.startswith("tool_"):
+            logger.info(f"Processing tool details for user {user_id}")
+            await handle_trading_tools(update, context)
             return
             
         # Обработка конкретных OTC пар
@@ -864,6 +901,11 @@ def get_admin_keyboard():
         [
             InlineKeyboardButton("📝 Управление текстами", callback_data="admin_texts"),
             InlineKeyboardButton("📨 Рассылка сообщений", callback_data="admin_broadcast")
+        ],
+        
+        # Образовательные разделы
+        [
+            InlineKeyboardButton("📚 Управление обучением", callback_data="admin_education")
         ],
         
         # Новые функции мессенджинга
@@ -3646,6 +3688,12 @@ def main():
             # Обработчик текстовых сообщений
             application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
             
+            # Обработчики новых кнопок для трейдинга
+            application.add_handler(CallbackQueryHandler(handle_trading_books, pattern="^trading_books$"))
+            application.add_handler(CallbackQueryHandler(handle_trading_beginner, pattern="^trading_beginner$"))
+            application.add_handler(CallbackQueryHandler(handle_trading_strategies, pattern="^trading_strategies$"))
+            application.add_handler(CallbackQueryHandler(handle_trading_tools, pattern="^trading_tools$"))
+            
             # Обработчик всех остальных кнопок
             application.add_handler(CallbackQueryHandler(button_click))
 
@@ -4272,6 +4320,2320 @@ async def admin_proxy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     return ADMIN_PROXY
 
+async def admin_message_to_pending_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик отправки сообщений неодобренным пользователям"""
+    query = update.callback_query
+    
+    if query:
+        await query.answer()
+        
+        if query.data == "admin_back":
+            await query.edit_message_text(
+                "👑 Панель администратора",
+                reply_markup=get_admin_keyboard()
+            )
+            return ADMIN_MENU
+        
+        elif query.data == "send_to_all_pending":
+            # Отправка всем неодобренным - запрашиваем текст сообщения
+            context.user_data['send_to_all_pending'] = True
+            
+            await query.edit_message_text(
+                "📩 Отправка сообщения всем неодобренным пользователям\n\n"
+                "Введите текст сообщения, которое будет отправлено всем неодобренным пользователям:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_MESSAGE_TO_PENDING
+        
+        elif query.data == "select_pending_users":
+            # Отображаем список неодобренных пользователей для выбора
+            from models import get_pending_users
+            pending_users = get_pending_users()
+            
+            if not pending_users or len(pending_users) == 0:
+                await query.edit_message_text(
+                    "❌ Нет неодобренных пользователей в системе.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_MESSAGE_TO_PENDING
+            
+            # Создаем клавиатуру со списком неодобренных пользователей
+            keyboard = []
+            
+            # Добавляем кнопку выбора всех пользователей
+            keyboard.append([
+                InlineKeyboardButton("✅ Выбрать всех пользователей", callback_data="select_all_pending")
+            ])
+            
+            # Отображаем первые 10 пользователей с чекбоксами
+            for i, user in enumerate(pending_users[:10]):
+                user_id = user.get('user_id')
+                username = user.get('username', 'Без имени')
+                
+                # Проверяем, выбран ли уже этот пользователь
+                is_selected = user_id in context.user_data.get('selected_pending_list', [])
+                checkbox = "☑️" if is_selected else "⬜"
+                
+                keyboard.append([
+                    InlineKeyboardButton(f"{checkbox} @{username} (ID: {user_id})", 
+                                       callback_data=f"toggle_pending_{user_id}")
+                ])
+            
+            # Добавляем кнопку "Показать еще" если пользователей больше 10
+            if len(pending_users) > 10:
+                keyboard.append([
+                    InlineKeyboardButton("⏩ Показать еще", callback_data="pending_page_next_1")
+                ])
+            
+            # Добавляем кнопки действий
+            action_buttons = []
+            
+            # Если есть выбранные пользователи, показываем кнопку отправки
+            selected_count = len(context.user_data.get('selected_pending_list', []))
+            if selected_count > 0:
+                action_buttons.append(
+                    InlineKeyboardButton(f"📩 Отправить выбранным ({selected_count})", 
+                                        callback_data="send_to_selected_pending")
+                )
+            
+            # Добавляем кнопки в клавиатуру
+            if action_buttons:
+                keyboard.append(action_buttons)
+            
+            # Добавляем кнопку назад
+            keyboard.append([
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ])
+            
+            await query.edit_message_text(
+                "👥 Выберите пользователей для отправки сообщения:\n"
+                "Нажмите на пользователя, чтобы отметить/снять отметку.",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return ADMIN_MESSAGE_TO_PENDING
+            
+        # Обработка выбора всех пользователей
+        elif query.data == "select_all_pending":
+            from models import get_pending_users
+            pending_users = get_pending_users()
+            
+            # Сохраняем ID всех пользователей
+            all_user_ids = [user.get('user_id') for user in pending_users]
+            context.user_data['selected_pending_list'] = all_user_ids
+            
+            # Обновляем сообщение с отмеченными чекбоксами
+            keyboard = []
+            
+            # Добавляем кнопку очистки выбора
+            keyboard.append([
+                InlineKeyboardButton("❌ Очистить выбор", callback_data="clear_pending_selection")
+            ])
+            
+            # Отображаем первые 10 пользователей с отмеченными чекбоксами
+            for i, user in enumerate(pending_users[:10]):
+                user_id = user.get('user_id')
+                username = user.get('username', 'Без имени')
+                keyboard.append([
+                    InlineKeyboardButton(f"☑️ @{username} (ID: {user_id})", 
+                                       callback_data=f"toggle_pending_{user_id}")
+                ])
+            
+            # Добавляем кнопки навигации и действий
+            if len(pending_users) > 10:
+                keyboard.append([
+                    InlineKeyboardButton("⏩ Показать еще", callback_data="pending_page_next_1")
+                ])
+            
+            # Добавляем кнопку отправки сообщения
+            keyboard.append([
+                InlineKeyboardButton(f"📩 Отправить выбранным ({len(all_user_ids)})", 
+                                   callback_data="send_to_selected_pending")
+            ])
+            
+            # Добавляем кнопку назад
+            keyboard.append([
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ])
+            
+            await query.edit_message_text(
+                "👥 Все неодобренные пользователи выбраны!\n"
+                "Выберите действие:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return ADMIN_MESSAGE_TO_PENDING
+            
+        # Обработка очистки выбора
+        elif query.data == "clear_pending_selection":
+            # Очищаем список выбранных пользователей
+            if 'selected_pending_list' in context.user_data:
+                del context.user_data['selected_pending_list']
+            
+            # Вызываем обработчик выбора пользователей заново для обновления интерфейса
+            query.data = "select_pending_users"
+            return await admin_message_to_pending_handler(update, context)
+        
+        # Обработка переключения выбора пользователя
+        elif query.data.startswith("toggle_pending_"):
+            user_id = int(query.data.replace("toggle_pending_", ""))
+            
+            # Инициализируем список выбранных пользователей, если его еще нет
+            if 'selected_pending_list' not in context.user_data:
+                context.user_data['selected_pending_list'] = []
+            
+            # Переключаем статус выбора пользователя
+            if user_id in context.user_data['selected_pending_list']:
+                context.user_data['selected_pending_list'].remove(user_id)
+            else:
+                context.user_data['selected_pending_list'].append(user_id)
+            
+            # Вызываем обработчик выбора пользователей заново для обновления интерфейса
+            query.data = "select_pending_users"
+            return await admin_message_to_pending_handler(update, context)
+        
+        # Обработка отправки сообщения выбранным пользователям
+        elif query.data == "send_to_selected_pending":
+            selected_users = context.user_data.get('selected_pending_list', [])
+            
+            if not selected_users or len(selected_users) == 0:
+                await query.edit_message_text(
+                    "❌ Нет выбранных пользователей для отправки сообщения.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_MESSAGE_TO_PENDING
+            
+            # Запрашиваем текст сообщения для отправки
+            context.user_data['send_to_selected_pending'] = True
+            
+            await query.edit_message_text(
+                f"📩 Отправка сообщения выбранным пользователям ({len(selected_users)})\n\n"
+                "Введите текст сообщения:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_MESSAGE_TO_PENDING
+            
+        elif query.data.startswith("select_pending_"):
+            # Выбран конкретный пользователь из списка (старый вариант)
+            user_id = int(query.data.replace("select_pending_", ""))
+            user_info = get_user(user_id)
+            
+            if not user_info:
+                await query.edit_message_text(
+                    "❌ Пользователь не найден.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_MESSAGE_TO_PENDING
+            
+            # Сохраняем ID пользователя для отправки сообщения
+            context.user_data['admin_recipient_id'] = user_id
+            username = user_info.get('username', 'Без имени')
+            
+            await query.edit_message_text(
+                f"📩 Отправка сообщения неодобренному пользователю:\n"
+                f"👤 Имя: @{username}\n"
+                f"🆔 ID: {user_id}\n\n"
+                f"Введите текст сообщения, которое хотите отправить:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_MESSAGE_TO_PENDING
+    
+    elif update.message:
+        # Получен текст сообщения для отправки
+        message_text = update.message.text
+        
+        if 'send_to_all_pending' in context.user_data and context.user_data['send_to_all_pending']:
+            # Отправка всем неодобренным пользователям
+            try:
+                # Получаем список ID всех неодобренных пользователей
+                from models import get_pending_user_ids
+                pending_user_ids = get_pending_user_ids()
+                
+                if not pending_user_ids or len(pending_user_ids) == 0:
+                    await update.message.reply_text(
+                        "❌ Нет неодобренных пользователей в системе.",
+                        reply_markup=get_admin_keyboard()
+                    )
+                    if 'send_to_all_pending' in context.user_data:
+                        del context.user_data['send_to_all_pending']
+                    return ADMIN_MENU
+                
+                success_count = 0
+                fail_count = 0
+                
+                # Отправляем сообщение каждому пользователю
+                for user_id in pending_user_ids:
+                    try:
+                        await context.bot.send_message(
+                            chat_id=user_id,
+                            text=message_text
+                        )
+                        success_count += 1
+                    except Exception as e:
+                        logger.error(f"Error sending message to user {user_id}: {e}")
+                        fail_count += 1
+                
+                # Очищаем флаг из контекста
+                if 'send_to_all_pending' in context.user_data:
+                    del context.user_data['send_to_all_pending']
+                
+                await update.message.reply_text(
+                    f"✅ Сообщение успешно отправлено {success_count} неодобренным пользователям.\n"
+                    f"❌ Не удалось отправить {fail_count} пользователям.",
+                    reply_markup=get_admin_keyboard()
+                )
+                return ADMIN_MENU
+                
+            except Exception as e:
+                logger.error(f"Error broadcasting to pending users: {e}")
+                
+                if 'send_to_all_pending' in context.user_data:
+                    del context.user_data['send_to_all_pending']
+                    
+                await update.message.reply_text(
+                    f"❌ Ошибка при отправке сообщений: {str(e)}",
+                    reply_markup=get_admin_keyboard()
+                )
+                return ADMIN_MENU
+                
+        # Отправка выбранным пользователям
+        elif 'send_to_selected_pending' in context.user_data and context.user_data['send_to_selected_pending']:
+            selected_users = context.user_data.get('selected_pending_list', [])
+            
+            if not selected_users or len(selected_users) == 0:
+                await update.message.reply_text(
+                    "❌ Нет выбранных пользователей для отправки сообщения.",
+                    reply_markup=get_admin_keyboard()
+                )
+                
+                # Очищаем данные
+                if 'send_to_selected_pending' in context.user_data:
+                    del context.user_data['send_to_selected_pending']
+                if 'selected_pending_list' in context.user_data:
+                    del context.user_data['selected_pending_list']
+                
+                return ADMIN_MENU
+            
+            # Отправляем сообщение выбранным пользователям
+            success_count = 0
+            fail_count = 0
+            
+            for user_id in selected_users:
+                try:
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text=f"📝 *Сообщение от администратора:*\n\n{message_text}",
+                        parse_mode='Markdown'
+                    )
+                    success_count += 1
+                except Exception as e:
+                    logger.error(f"Ошибка отправки сообщения выбранному пользователю {user_id}: {e}")
+                    fail_count += 1
+            
+            # Отправляем отчет администратору
+            await update.message.reply_text(
+                f"📊 Отчет о рассылке выбранным пользователям:\n\n"
+                f"✅ Успешно отправлено: {success_count}\n"
+                f"❌ Ошибки отправки: {fail_count}\n"
+                f"📨 Всего получателей: {len(selected_users)}",
+                reply_markup=get_admin_keyboard()
+            )
+            
+            # Очищаем данные
+            if 'send_to_selected_pending' in context.user_data:
+                del context.user_data['send_to_selected_pending']
+            if 'selected_pending_list' in context.user_data:
+                del context.user_data['selected_pending_list']
+            
+            return ADMIN_MENU
+            
+        elif 'admin_recipient_id' in context.user_data:
+            # Отправка конкретному пользователю
+            try:
+                user_id = context.user_data['admin_recipient_id']
+                
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"📝 *Сообщение от администратора:*\n\n{message_text}",
+                    parse_mode='Markdown'
+                )
+                
+                # Очищаем ID получателя из контекста
+                del context.user_data['admin_recipient_id']
+                
+                await update.message.reply_text(
+                    "✅ Сообщение успешно отправлено пользователю!",
+                    reply_markup=get_admin_keyboard()
+                )
+                return ADMIN_MENU
+                
+            except Exception as e:
+                logger.error(f"Error sending message to user: {e}")
+                
+                if 'admin_recipient_id' in context.user_data:
+                    del context.user_data['admin_recipient_id']
+                    
+                await update.message.reply_text(
+                    f"❌ Ошибка при отправке сообщения: {str(e)}",
+                    reply_markup=get_admin_keyboard()
+                )
+                return ADMIN_MENU
+        
+        else:
+            # Если нет цели для отправки, возвращаемся в меню
+            await update.message.reply_text(
+                "❌ Не указан получатель для отправки сообщения.",
+                reply_markup=get_admin_keyboard()
+            )
+            return ADMIN_MENU
+    
+    return ADMIN_MESSAGE_TO_PENDING
+
+async def admin_select_users_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик выбора пользователей для отправки сообщений"""
+    query = update.callback_query
+    
+    if query:
+        await query.answer()
+        
+        if query.data == "admin_back":
+            await query.edit_message_text(
+                "👑 Панель администратора",
+                reply_markup=get_admin_keyboard()
+            )
+            return ADMIN_MENU
+        
+        elif query.data == "search_users_criteria":
+            # Поиск пользователей по критериям
+            await query.edit_message_text(
+                "🔍 Поиск пользователей по критериям\n\n"
+                "Введите поисковый запрос (имя пользователя, ID и т.д.):",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ]])
+            )
+            # Устанавливаем флаг для последующей обработки ввода
+            context.user_data['search_users_mode'] = 'search_criteria'
+            return ADMIN_SELECT_USERS
+        
+        elif query.data == "select_from_list":
+            # Выбор из полного списка пользователей
+            from models import get_all_users
+            all_users = get_all_users()
+            
+            if not all_users or len(all_users) == 0:
+                await query.edit_message_text(
+                    "❌ Нет пользователей в системе.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_SELECT_USERS
+            
+            # Создаем клавиатуру со списком пользователей
+            keyboard = []
+            for user in all_users[:10]:  # Ограничиваем 10 пользователями
+                user_id = user.get('user_id')
+                username = user.get('username', 'Без имени')
+                is_approved = "✅" if user.get('is_approved') else "⏳"
+                keyboard.append([
+                    InlineKeyboardButton(f"{is_approved} @{username} (ID: {user_id})", callback_data=f"select_user_{user_id}")
+                ])
+            
+            # Добавляем пагинацию, если пользователей больше 10
+            if len(all_users) > 10:
+                keyboard.append([
+                    InlineKeyboardButton("🔄 Показать еще", callback_data="users_more")
+                ])
+            
+            # Добавляем кнопку "Назад"
+            keyboard.append([
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ])
+            
+            await query.edit_message_text(
+                "👥 Выберите пользователя для отправки сообщения:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return ADMIN_SELECT_USERS
+        
+        elif query.data == "segment_by_activity":
+            # Сегментация по активности
+            keyboard = [
+                [InlineKeyboardButton("🏃 Активные (7 дней)", callback_data="segment_active_7")],
+                [InlineKeyboardButton("🚶 Активные (30 дней)", callback_data="segment_active_30")],
+                [InlineKeyboardButton("🛌 Неактивные (>30 дней)", callback_data="segment_inactive_30")],
+                [InlineKeyboardButton("👥 Все пользователи", callback_data="segment_all")],
+                [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+            ]
+            
+            await query.edit_message_text(
+                "📊 Сегментация пользователей по активности\n\n"
+                "Выберите категорию пользователей для отправки сообщения:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return ADMIN_SELECT_USERS
+            
+        elif query.data.startswith("select_user_"):
+            # Выбран конкретный пользователь из списка
+            user_id = int(query.data.replace("select_user_", ""))
+            user_info = get_user(user_id)
+            
+            if not user_info:
+                await query.edit_message_text(
+                    "❌ Пользователь не найден.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+                return ADMIN_SELECT_USERS
+            
+            # Сохраняем ID пользователя для отправки сообщения
+            context.user_data['admin_recipient_id'] = user_id
+            username = user_info.get('username', 'Без имени')
+            is_approved = "✅ Подтвержден" if user_info.get('is_approved') else "⏳ Не подтвержден"
+            
+            await query.edit_message_text(
+                f"📩 Отправка сообщения пользователю:\n"
+                f"👤 Имя: @{username}\n"
+                f"🆔 ID: {user_id}\n"
+                f"Статус: {is_approved}\n\n"
+                f"Введите текст сообщения, которое хотите отправить:",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Отмена", callback_data="admin_back")
+                ]])
+            )
+            # Устанавливаем флаг для последующей обработки ввода
+            context.user_data['message_mode'] = 'direct_message'
+            return ADMIN_SEND_MESSAGE_TO_USER
+    
+    elif update.message and 'search_users_mode' in context.user_data:
+        # Обработка ввода поискового запроса
+        search_query = update.message.text.strip()
+        
+        try:
+            # Поиск пользователей по критериям
+            matching_users = []
+            
+            # Пытаемся найти по ID
+            try:
+                user_id = int(search_query)
+                user = get_user(user_id)
+                if user:
+                    matching_users.append(user)
+            except ValueError:
+                pass
+            
+            # Поиск по имени пользователя
+            if not matching_users:
+                # Предполагаем, что у вас есть функция поиска пользователей по имени
+                from models import get_user_by_username
+                user = get_user_by_username(search_query)
+                if user:
+                    matching_users.append(user)
+            
+            # Если пользователи найдены, отображаем их
+            if matching_users:
+                keyboard = []
+                for user in matching_users:
+                    user_id = user.get('user_id')
+                    username = user.get('username', 'Без имени')
+                    is_approved = "✅" if user.get('is_approved') else "⏳"
+                    keyboard.append([
+                        InlineKeyboardButton(f"{is_approved} @{username} (ID: {user_id})", callback_data=f"select_user_{user_id}")
+                    ])
+                
+                keyboard.append([
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ])
+                
+                await update.message.reply_text(
+                    f"🔍 Найдено пользователей: {len(matching_users)}\n\n"
+                    f"Выберите пользователя для отправки сообщения:",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ Пользователи по вашему запросу не найдены.",
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                    ]])
+                )
+            
+            # Очищаем флаг из контекста
+            del context.user_data['search_users_mode']
+            return ADMIN_SELECT_USERS
+            
+        except Exception as e:
+            logger.error(f"Error searching users: {e}")
+            
+            if 'search_users_mode' in context.user_data:
+                del context.user_data['search_users_mode']
+                
+            await update.message.reply_text(
+                f"❌ Ошибка при поиске пользователей: {str(e)}",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+                ]])
+            )
+            return ADMIN_SELECT_USERS
+    
+    return ADMIN_SELECT_USERS
+
+async def admin_content_manager_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик управления контентом"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_CONTENT_MANAGER
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+        
+    # Заглушка для управления контентом
+    content_text = (
+        "📑 Управление контентом\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность управления контентом бота:\n"
+        "• Управление изображениями\n"
+        "• Управление графиками\n"
+        "• Управление видео\n"
+        "• Управление файлами\n"
+        "и другие возможности для работы с контентом."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        content_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_CONTENT_MANAGER
+
+async def admin_statistics_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик расширенной аналитики"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_STATISTICS
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+        
+    # Заглушка для расширенной аналитики
+    stats_text = (
+        "📊 Расширенная аналитика\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появятся подробные статистические данные:\n"
+        "• Активность пользователей\n"
+        "• Рост аудитории\n"
+        "• Конверсия регистраций\n"
+        "• Отток пользователей\n"
+        "• Детализация по странам\n"
+        "и другие аналитические данные."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        stats_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_STATISTICS
+
+async def admin_quick_commands_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик быстрых команд"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_QUICK_COMMANDS
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для быстрых команд
+    commands_text = (
+        "⚡ Быстрые команды\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появятся быстрые команды для управления ботом:\n"
+        "• Перезагрузка бота\n"
+        "• Очистка кэша\n"
+        "• Генерация отчетов\n"
+        "• Проверка системных сообщений\n"
+        "и другие быстрые действия."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        commands_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_QUICK_COMMANDS
+
+async def admin_history_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик истории действий"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_HISTORY
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для истории действий
+    history_text = (
+        "📜 История действий\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится журнал действий:\n"
+        "• Действия пользователей\n"
+        "• Действия администратора\n"
+        "• Системные события\n"
+        "• Логирование изменений\n"
+        "и другие записи истории."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        history_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_HISTORY
+
+async def admin_plugins_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик управления плагинами"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_PLUGINS
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для управления плагинами
+    plugins_text = (
+        "🧩 Управление плагинами\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится возможность управления плагинами:\n"
+        "• Просмотр установленных плагинов\n"
+        "• Установка новых плагинов\n"
+        "• Удаление плагинов\n"
+        "• Обновление плагинов\n"
+        "и другие функции для расширения возможностей бота."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        plugins_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_PLUGINS
+
+async def admin_marketplace_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик маркетплейса расширений"""
+    query = update.callback_query
+    if not query:
+        return ADMIN_MARKETPLACE
+    
+    await query.answer()
+    
+    if query.data == "admin_back":
+        await query.edit_message_text(
+            "👑 Панель администратора",
+            reply_markup=get_admin_keyboard()
+        )
+        return ADMIN_MENU
+    
+    # Заглушка для маркетплейса расширений
+    marketplace_text = (
+        "🛒 Маркетплейс расширений\n\n"
+        "⚠️ Функция в разработке\n\n"
+        "Скоро здесь появится доступ к маркетплейсу расширений:\n"
+        "• Обзор доступных расширений\n"
+        "• Поиск расширений\n"
+        "• Популярные расширения\n"
+        "• Новые расширения\n"
+        "и другие категории расширений для вашего бота."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
+    ]
+    
+    await query.edit_message_text(
+        marketplace_text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return ADMIN_MARKETPLACE
+
+async def handle_trading_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для раздела книги по трейдингу"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Processing trading_books request for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+    except Exception as e:
+        logger.error(f"Error in handle_trading_books: {e}")
+        lang_code = 'ru'
+    
+    # Тексты заголовков на разных языках
+    titles = {
+        'tg': '📚 Китобҳо барои трейдинг',
+        'ru': '📚 Книги по трейдингу',
+        'uz': '📚 Treyding bo\'yicha kitoblar',
+        'kk': '📚 Трейдинг бойынша кітаптар',
+        'en': '📚 Trading Books'
+    }
+    
+    # Тексты описаний на разных языках
+    descriptions = {
+        'tg': 'Интихоби китобҳои баландсифат барои таълими трейдинг:',
+        'ru': 'Подборка качественных книг для обучения трейдингу:',
+        'uz': 'Treyding o\'rganish uchun sifatli kitoblar to\'plami:',
+        'kk': 'Трейдингті үйрену үшін сапалы кітаптар жиынтығы:',
+        'en': 'Selection of quality books for learning trading:'
+    }
+    
+    # Список книг на разных языках с подробной информацией и ссылками для скачивания
+    books = {
+        'tg': [
+            {
+                "title": "1. 'Ҳиссиётҳои трейдер' - Марк Дуглас",
+                "description": "Китоб дар бораи руҳшиносии бозори молиявӣ ва чӣ тавр эҳсосотро идора кардан. Муаллиф таҷрибаи худро мубодила мекунад ва роҳҳои фикрронии дурустро барои трейдинги бомуваффақият нишон медиҳад.",
+                "pages": "240 саҳифа",
+                "year": "1990",
+                "download_link": "https://t.me/tradepobooks/10"
+            },
+            {
+                "title": "2. 'Таҳлили техникӣ барои нав ба нав' - Д. Швагер",
+                "description": "Ин дастури мукаммал оид ба таҳлили техникӣ барои ҳама категорияҳои трейдерон мебошад. Китоб бо усули содда навишта шудааст ва принсипҳои асосии таҳлили бозорро дар бар мегирад.",
+                "pages": "380 саҳифа",
+                "year": "1996",
+                "download_link": "https://t.me/tradepobooks/12"
+            },
+            {
+                "title": "3. 'Хотираҳои трейдери валютагӣ' - К. Борселино",
+                "description": "Муаллиф тамоми таҷрибаи худро ҳамчун яке аз беҳтарин трейдерони валюта ба хонанда нақл мекунад. Ҳикояҳои аҷоиб ва маслиҳатҳои амалӣ.",
+                "pages": "220 саҳифа",
+                "year": "2005",
+                "download_link": "https://t.me/tradepobooks/15"
+            },
+            {
+                "title": "4. 'Трейдинг дар зонаи' - Марк Дуглас",
+                "description": "Китоби машҳур оид ба руҳшиносии трейдинг, ки дар он муаллиф панҷ ҳақиқати асосиро, ки бояд ҳар як трейдер донад, мефаҳмонад. Барои онҳое, ки мехоҳанд ба трейдер муваффақ табдил ёбанд.",
+                "pages": "280 саҳифа",
+                "year": "2000",
+                "download_link": "https://t.me/tradepobooks/17"
+            },
+            {
+                "title": "5. 'Асосҳои таҳлили техникӣ' - Д. Мерфи",
+                "description": "Қомуси таҳлили техникӣ, ки 20 соли таҷрибаи муаллиф дар таҳлили техникиро дар бар мегирад. Дар китоб ҳама ҷанбаҳои муҳими таҳлили графикӣ тавсиф шудаанд.",
+                "pages": "592 саҳифа",
+                "year": "1986",
+                "download_link": "https://t.me/tradepobooks/19"
+            },
+            {
+                "title": "6. 'Руҳшиносии пул' - М. Лабковский",
+                "description": "Китоб ба ҷанбаҳои равонии муносибат бо пул мепардозад. Муаллиф робитаи байни пул ва некуаҳволии шахсиро муҳокима мекунад ва дар бораи он ки чӣ гуна аз ҷиҳати молиявӣ бомуваффақият будан ва дар айни замон хушбахт будан мумкин аст.",
+                "pages": "250 саҳифа",
+                "year": "2020",
+                "download_link": "https://t.me/tradepobooks/22"
+            }
+        ],
+        'ru': [
+            {
+                "title": "1. 'Психология трейдинга' - Марк Дуглас",
+                "description": "Книга о психологии финансовых рынков и о том, как управлять эмоциями. Автор делится своим опытом и показывает пути правильного мышления для успешного трейдинга.",
+                "pages": "240 страниц",
+                "year": "1990",
+                "download_link": "https://t.me/tradepobooks/10"
+            },
+            {
+                "title": "2. 'Технический анализ для начинающих' - Д. Швагер",
+                "description": "Это полное руководство по техническому анализу для всех категорий трейдеров. Книга написана простым методом и охватывает основные принципы анализа рынка.",
+                "pages": "380 страниц",
+                "year": "1996",
+                "download_link": "https://t.me/tradepobooks/12"
+            },
+            {
+                "title": "3. 'Воспоминания валютного трейдера' - К. Борселино",
+                "description": "Автор рассказывает читателю весь свой опыт как одного из лучших валютных трейдеров. Интересные истории и практические советы.",
+                "pages": "220 страниц",
+                "year": "2005",
+                "download_link": "https://t.me/tradepobooks/15"
+            },
+            {
+                "title": "4. 'Трейдинг в зоне' - Марк Дуглас",
+                "description": "Известная книга о психологии трейдинга, в которой автор объясняет пять основных истин, которые должен знать каждый трейдер. Для тех, кто хочет стать успешным трейдером.",
+                "pages": "280 страниц",
+                "year": "2000",
+                "download_link": "https://t.me/tradepobooks/17"
+            },
+            {
+                "title": "5. 'Основы технического анализа' - Д. Мерфи",
+                "description": "Энциклопедия технического анализа, которая охватывает 20 лет опыта автора в техническом анализе. В книге описаны все важные аспекты графического анализа.",
+                "pages": "592 страницы",
+                "year": "1986",
+                "download_link": "https://t.me/tradepobooks/19"
+            },
+            {
+                "title": "6. 'Психология денег' - М. Лабковский",
+                "description": "Книга посвящена психологическим аспектам отношения к деньгам. Автор обсуждает связь между деньгами и личным благополучием и о том, как быть финансово успешным и при этом счастливым.",
+                "pages": "250 страниц",
+                "year": "2020",
+                "download_link": "https://t.me/tradepobooks/22"
+            }
+        ],
+        'uz': [
+            {
+                "title": "1. 'Treydingning psixologiyasi' - Mark Duglas",
+                "description": "Moliya bozorlari psixologiyasi va qanday qilib his-tuyg'ularni boshqarish haqida kitob. Muallif o'z tajribasini bo'lishadi va muvaffaqiyatli treyding uchun to'g'ri fikrlash yo'llarini ko'rsatadi.",
+                "pages": "240 bet",
+                "year": "1990",
+                "download_link": "https://t.me/tradepobooks/10"
+            },
+            {
+                "title": "2. 'Yangi boshlanuvchilar uchun texnik tahlil' - D. Shvager",
+                "description": "Bu barcha toifadagi treyderlar uchun texnik tahlil bo'yicha to'liq qo'llanma. Kitob oddiy usulda yozilgan va bozorni tahlil qilishning asosiy tamoyillarini qamrab oladi.",
+                "pages": "380 bet",
+                "year": "1996",
+                "download_link": "https://t.me/tradepobooks/12"
+            },
+            {
+                "title": "3. 'Valyuta treyderining xotiralari' - K. Borselino",
+                "description": "Muallif o'zining eng yaxshi valyuta treyderlaridan biri sifatidagi tajribasini o'quvchiga aytib beradi. Qiziqarli hikoyalar va amaliy maslahatlar.",
+                "pages": "220 bet",
+                "year": "2005",
+                "download_link": "https://t.me/tradepobooks/15"
+            },
+            {
+                "title": "4. 'Zonada treyding' - Mark Duglas",
+                "description": "Treyding psixologiyasi haqidagi mashhur kitob, unda muallif har bir treyderga bilishi kerak bo'lgan beshta asosiy haqiqatni tushuntiradi. Muvaffaqiyatli treyderga aylanishni istaydiganlar uchun.",
+                "pages": "280 bet",
+                "year": "2000",
+                "download_link": "https://t.me/tradepobooks/17"
+            },
+            {
+                "title": "5. 'Texnik tahlil asoslari' - D. Merfi",
+                "description": "Texnik tahlil entsiklopediyasi, unda muallifning 20 yillik texnik tahlil tajribasi aks etgan. Kitobda grafik tahlilning barcha muhim jihatlari tasvirlangan.",
+                "pages": "592 bet",
+                "year": "1986",
+                "download_link": "https://t.me/tradepobooks/19"
+            },
+            {
+                "title": "6. 'Pul psixologiyasi' - M. Labkovskiy",
+                "description": "Kitob pulga bo'lgan munosabatning psixologik jihatlariga bag'ishlangan. Muallif pul va shaxsiy farovonlik o'rtasidagi bog'liqlikni va qanday qilib moliyaviy jihatdan muvaffaqiyatli va ayni paytda baxtli bo'lish mumkinligi haqida muhokama qiladi.",
+                "pages": "250 bet",
+                "year": "2020",
+                "download_link": "https://t.me/tradepobooks/22"
+            }
+        ],
+        'kk': [
+            {
+                "title": "1. 'Трейдинг психологиясы' - Марк Дуглас",
+                "description": "Қаржы нарықтарының психологиясы және эмоцияларды қалай басқару туралы кітап. Автор өз тәжірибесімен бөліседі және табысты трейдингке дұрыс ойлау жолдарын көрсетеді.",
+                "pages": "240 бет",
+                "year": "1990",
+                "download_link": "https://t.me/tradepobooks/10"
+            },
+            {
+                "title": "2. 'Бастаушыларға арналған техникалық талдау' - Д. Швагер",
+                "description": "Бұл барлық санаттағы трейдерлерге арналған техникалық талдаудың толық нұсқаулығы. Кітап қарапайым әдіспен жазылған және нарықты талдаудың негізгі қағидаларын қамтиды.",
+                "pages": "380 бет",
+                "year": "1996",
+                "download_link": "https://t.me/tradepobooks/12"
+            },
+            {
+                "title": "3. 'Валюта трейдерінің естеліктері' - К. Борселино",
+                "description": "Автор ең жақсы валюта трейдерлерінің бірі ретіндегі барлық тәжірибесін оқырманға айтып береді. Қызықты әңгімелер мен тәжірибелік кеңестер.",
+                "pages": "220 бет",
+                "year": "2005",
+                "download_link": "https://t.me/tradepobooks/15"
+            },
+            {
+                "title": "4. 'Аймақтағы трейдинг' - Марк Дуглас",
+                "description": "Трейдинг психологиясы туралы атақты кітап, онда автор әрбір трейдер білуі керек бес негізгі шындықты түсіндіреді. Табысты трейдерге айналғысы келетіндерге арналған.",
+                "pages": "280 бет",
+                "year": "2000",
+                "download_link": "https://t.me/tradepobooks/17"
+            },
+            {
+                "title": "5. 'Техникалық талдау негіздері' - Д. Мерфи",
+                "description": "Техникалық талдау энциклопедиясы, онда автордың техникалық талдаудағы 20 жылдық тәжірибесі қамтылған. Кітапта графикалық талдаудың барлық маңызды аспектілері сипатталған.",
+                "pages": "592 бет",
+                "year": "1986",
+                "download_link": "https://t.me/tradepobooks/19"
+            },
+            {
+                "title": "6. 'Ақша психологиясы' - М. Лабковский",
+                "description": "Кітап ақшаға қатынастың психологиялық аспектілеріне арналған. Автор ақша мен жеке әл-ауқат арасындағы байланысты және қалай қаржылық жағынан табысты және сонымен бірге бақытты болу мүмкіндігін талқылайды.",
+                "pages": "250 бет",
+                "year": "2020",
+                "download_link": "https://t.me/tradepobooks/22"
+            }
+        ],
+        'en': [
+            {
+                "title": "1. 'Trading in the Zone' - Mark Douglas",
+                "description": "A book about the psychology of financial markets and how to manage emotions. The author shares his experience and shows ways of correct thinking for successful trading.",
+                "pages": "240 pages",
+                "year": "1990",
+                "download_link": "https://t.me/tradepobooks/10"
+            },
+            {
+                "title": "2. 'Technical Analysis for Beginners' - J. Schwager",
+                "description": "This is a complete guide to technical analysis for all categories of traders. The book is written in a simple method and covers the basic principles of market analysis.",
+                "pages": "380 pages",
+                "year": "1996",
+                "download_link": "https://t.me/tradepobooks/12"
+            },
+            {
+                "title": "3. 'Reminiscences of a Currency Trader' - K. Borselino",
+                "description": "The author tells the reader all his experience as one of the best currency traders. Interesting stories and practical advice.",
+                "pages": "220 pages",
+                "year": "2005",
+                "download_link": "https://t.me/tradepobooks/15"
+            },
+            {
+                "title": "4. 'The Disciplined Trader' - Mark Douglas",
+                "description": "A famous book on trading psychology, in which the author explains the five basic truths that every trader should know. For those who want to become a successful trader.",
+                "pages": "280 pages",
+                "year": "2000",
+                "download_link": "https://t.me/tradepobooks/17"
+            },
+            {
+                "title": "5. 'Technical Analysis Foundations' - J. Murphy",
+                "description": "Encyclopedia of technical analysis, covering the author's 20 years of experience in technical analysis. The book describes all important aspects of graphical analysis.",
+                "pages": "592 pages",
+                "year": "1986",
+                "download_link": "https://t.me/tradepobooks/19"
+            },
+            {
+                "title": "6. 'The Psychology of Money' - M. Housel",
+                "description": "The book is dedicated to the psychological aspects of attitude to money. The author discusses the connection between money and personal well-being and how to be financially successful and at the same time happy.",
+                "pages": "250 pages",
+                "year": "2020",
+                "download_link": "https://t.me/tradepobooks/22"
+            }
+        ]
+    }
+    
+    button_text = {
+        'tg': '↩️ Бозгашт',
+        'ru': '↩️ Назад',
+        'uz': '↩️ Orqaga',
+        'kk': '↩️ Артқа',
+        'en': '↩️ Back'
+    }
+    
+    # Формируем сообщение на нужном языке
+    title = titles.get(lang_code, titles['ru'])
+    description = descriptions.get(lang_code, descriptions['ru'])
+    book_list = books.get(lang_code, books['ru'])
+    back_button = button_text.get(lang_code, button_text['ru'])
+    
+    # Создаем клавиатуру с книгами и ссылками для скачивания
+    keyboard = []
+    
+    # Текст для кнопок книг на разных языках
+    download_button_text = {
+        'tg': '📥 Боргирӣ кардан',
+        'ru': '📥 Скачать книгу',
+        'uz': '📥 Kitobni yuklab olish',
+        'kk': '📥 Кітапты жүктеу',
+        'en': '📥 Download book'
+    }
+    
+    # Текст для кнопок подробно на разных языках
+    details_button_text = {
+        'tg': 'ℹ️ Маълумоти муфассал',
+        'ru': 'ℹ️ Подробнее',
+        'uz': 'ℹ️ Batafsil',
+        'kk': 'ℹ️ Толығырақ',
+        'en': 'ℹ️ Details'
+    }
+    
+    # Добавляем информацию о каждой книге и кнопки
+    message = f"{title}\n\n{description}\n\n"
+    
+    for i, book in enumerate(book_list):
+        book_title = book["title"]
+        
+        # Добавляем основную информацию о книге
+        message += f"*{book_title}*\n"
+        
+        # Создаем кнопки для скачивания и подробной информации для каждой книги
+        keyboard.append([
+            InlineKeyboardButton(
+                download_button_text.get(lang_code, download_button_text['ru']),
+                url=book["download_link"]
+            ),
+            InlineKeyboardButton(
+                details_button_text.get(lang_code, details_button_text['ru']),
+                callback_data=f"book_details_{i}"
+            )
+        ])
+        
+        # Добавляем разделитель между книгами
+        if i < len(book_list) - 1:
+            message += "\n--------------------\n"
+    
+    # Добавляем кнопку возврата
+    keyboard.append([InlineKeyboardButton(back_button, callback_data="return_to_main")])
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN,
+        disable_web_page_preview=True
+    )
+
+async def handle_trading_beginner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для раздела обучение трейдингу с нуля"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Processing trading_beginner request for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+    except Exception as e:
+        logger.error(f"Error in handle_trading_beginner: {e}")
+        lang_code = 'ru'
+    
+    # Проверяем, запрошен ли конкретный раздел обучения
+    if query.data.startswith("beginner_topic_"):
+        # Извлекаем номер темы из callback_data
+        topic_number = query.data.replace("beginner_topic_", "")
+        return await show_beginner_topic_details(update, context, topic_number, lang_code)
+    
+    # Если запрошен основной раздел обучения
+    # Тексты заголовков на разных языках
+    titles = {
+        'tg': '🔰 Омӯзиши трейдинг аз сифр',
+        'ru': '🔰 Обучение трейдингу с нуля',
+        'uz': '🔰 Treyding bo\'yicha boshlang\'ich ta\'lim',
+        'kk': '🔰 Трейдингті нөлден үйрену',
+        'en': '🔰 Trading for Beginners'
+    }
+    
+    # Тексты описаний на разных языках
+    descriptions = {
+        'tg': 'Роҳнамои қадам ба қадам барои оғози трейдинг. Интихоб кунед, ки чиро меомӯзед:',
+        'ru': 'Пошаговое руководство для начала трейдинга. Выберите, что хотите изучить:',
+        'uz': 'Treyding boshlash uchun bosqichma-bosqich qo\'llanma. O\'rganmoqchi bo\'lgan narsani tanlang:',
+        'kk': 'Трейдингті бастау үшін қадамдық нұсқаулық. Нені оқығыңыз келетінін таңдаңыз:',
+        'en': 'Step-by-step guide to start trading. Choose what you want to learn:'
+    }
+    
+    # Названия разделов обучения на разных языках
+    topic_titles = {
+        'tg': [
+            "1️⃣ *Асосҳои трейдинг*",
+            "2️⃣ *Интихоби платформа*",
+            "3️⃣ *Таҳлили бозор*",
+            "4️⃣ *Идоракунии хавф*",
+            "5️⃣ *Психологияи трейдинг*",
+            "6️⃣ *Стратегияҳои савдо*",
+            "7️⃣ *Амалияи трейдинг*",
+            "8️⃣ *Такмили малака*"
+        ],
+        'ru': [
+            "1️⃣ *Основы трейдинга*",
+            "2️⃣ *Выбор платформы*",
+            "3️⃣ *Анализ рынка*",
+            "4️⃣ *Управление рисками*",
+            "5️⃣ *Психология трейдинга*",
+            "6️⃣ *Торговые стратегии*",
+            "7️⃣ *Практика трейдинга*",
+            "8️⃣ *Повышение квалификации*"
+        ],
+        'uz': [
+            "1️⃣ *Treyding asoslari*",
+            "2️⃣ *Platforma tanlash*",
+            "3️⃣ *Bozor tahlili*",
+            "4️⃣ *Xavflarni boshqarish*",
+            "5️⃣ *Treyding psixologiyasi*",
+            "6️⃣ *Savdo strategiyalari*",
+            "7️⃣ *Treyding amaliyoti*",
+            "8️⃣ *Malakani oshirish*"
+        ],
+        'kk': [
+            "1️⃣ *Трейдинг негіздері*",
+            "2️⃣ *Платформаны таңдау*",
+            "3️⃣ *Нарықты талдау*",
+            "4️⃣ *Тәуекелдерді басқару*",
+            "5️⃣ *Трейдинг психологиясы*",
+            "6️⃣ *Сауда стратегиялары*",
+            "7️⃣ *Трейдинг практикасы*",
+            "8️⃣ *Біліктілікті арттыру*"
+        ],
+        'en': [
+            "1️⃣ *Trading Basics*",
+            "2️⃣ *Platform Selection*",
+            "3️⃣ *Market Analysis*",
+            "4️⃣ *Risk Management*",
+            "5️⃣ *Trading Psychology*",
+            "6️⃣ *Trading Strategies*",
+            "7️⃣ *Trading Practice*",
+            "8️⃣ *Skill Enhancement*"
+        ]
+    }
+    
+    # Тексты кнопок на разных языках
+    button_texts = {
+        'tg': {
+            'details': "📖 Муфассал",
+            'back': "↩️ Бозгашт",
+            'main': "🏠 Ба саҳифаи асосӣ"
+        },
+        'ru': {
+            'details': "📖 Подробнее",
+            'back': "↩️ Назад",
+            'main': "🏠 На главную"
+        },
+        'uz': {
+            'details': "📖 Batafsil",
+            'back': "↩️ Orqaga",
+            'main': "🏠 Bosh sahifaga"
+        },
+        'kk': {
+            'details': "📖 Толығырақ",
+            'back': "↩️ Артқа",
+            'main': "🏠 Басты бетке"
+        },
+        'en': {
+            'details': "📖 More Details",
+            'back': "↩️ Back",
+            'main': "🏠 Home"
+        }
+    }
+    
+    # Получаем локализованные тексты
+    title = titles.get(lang_code, titles['ru'])
+    description = descriptions.get(lang_code, descriptions['ru'])
+    topics = topic_titles.get(lang_code, topic_titles['ru'])
+    button_text = button_texts.get(lang_code, button_texts['ru'])
+    
+    # Формируем сообщение
+    message = f"{title}\n\n{description}"
+    
+    # Создаем клавиатуру с разделами обучения
+    keyboard = []
+    
+    # Добавляем кнопки для каждого раздела обучения
+    for i, topic in enumerate(topics):
+        topic_number = i + 1
+        topic_text = topic.replace("*", "")  # Удаляем маркеры форматирования для кнопок
+        keyboard.append([
+            InlineKeyboardButton(topic_text, callback_data=f"beginner_topic_{topic_number}")
+        ])
+    
+    # Добавляем кнопки навигации
+    keyboard.append([
+        InlineKeyboardButton(button_text['main'], callback_data="return_to_main")
+    ])
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
+async def show_beginner_topic_details(update: Update, context: ContextTypes.DEFAULT_TYPE, topic_number: str, lang_code: str):
+    """Отображает подробную информацию о выбранном разделе обучения трейдингу"""
+    query = update.callback_query
+    
+    # Содержимое разделов обучения на разных языках
+    topic_content = {
+        'tg': {
+            '1': {
+                'title': "🔰 Асосҳои трейдинг",
+                'content': [
+                    "*Чӣ ҳаст трейдинг?*\nТрейдинг фаъолияти хариду фурӯши дороиҳои молиявӣ (арзҳо, саҳмияҳо, молҳо) бо мақсади гирифтани фоида аст.",
+                    "*Терминология асосӣ:*\n• Спред – фарқияти нархи хариду фурӯш\n• Волатилӣ – тағирёбии нархи дороӣ\n• Ликвидӣ – осон табдил додани дороӣ ба пул\n• Take Profit/Stop Loss – фармоишҳо барои назорати хатарҳо",
+                    "*Намудҳои бозорҳо:*\n• Forex – бозори асъор\n• Бозори саҳмияҳо – хариду фурӯши саҳмияҳои ширкатҳо\n• Бозори фьючерсҳо – шартномаҳо барои хариду фурӯши дороӣ дар оянда\n• Криптобозор – хариду фурӯши асъори рақамӣ",
+                    "*Услубҳои трейдинг:*\n• Скальпинг – муомилоти кӯтоҳмуддат бо даромади хурд\n• Трейдинги рӯзона – муомила дар давоми рӯз\n• Свинг-трейдинг – муомилаҳо дар давоми якчанд рӯз то ҳафта\n• Сармоягузории дарозмуддат – нигоҳ доштани мавқеъ барои моҳҳо/солҳо"
+                ]
+            },
+            '2': {
+                'title': "🖥️ Интихоби платформа",
+                'content': [
+                    "*Намудҳои платформаҳо:*\n• Брокерон – ширкатҳое, ки ба трейдерон дастрасӣ ба бозорҳоро медиҳанд\n• Биржаҳо – платформаҳое, ки ба муомилоти бевосита имкон медиҳанд",
+                    "*Меъёрҳои интихоб:*\n• Боэътимодӣ – танзимкунии ширкат, таърихи кор\n• Маблағ барои дохилшавӣ – ҳадди ақали сармоягузорӣ\n• Шартҳои муомила – спред, комиссия, левераж\n• Дастрасии фонд – усулҳои пасандоз/баровардани маблағ\n• Функсионалӣ – графикҳо, нишондиҳандаҳо, платформаи мобилӣ",
+                    "*Платформаҳои маъруф:*\n• MetaTrader 4/5 – барои трейдинги Forex ва фьючерсҳо\n• TradingView – барои таҳлил ва трейдинг\n• Think or Swim – барои трейдинги саҳмияҳо ва опсионҳо\n• Binance – барои трейдинги криптоасъор",
+                    "*Тавсияҳо:*\n• Аввал дар ҳисоби намоишӣ (демо) кор кунед\n• Интерфейсро ба худ мувофиқ кунед\n• Имкониятҳои таҳлил ва ҳисоботро омӯзед\n• Бехатарии ҳисобро таъмин кунед (аутентификатсияи дуомила, пароли мураккаб)"
+                ]
+            },
+            '3': {
+                'title': "📊 Таҳлили бозор",
+                'content': [
+                    "*Таҳлили техникӣ:*\n• Омӯзиши графикҳо ва нақшаҳо\n• Истифодаи индикаторҳо (MA, MACD, RSI)\n• Шинохтани нақшҳои нархӣ\n• Дарёфти сатҳҳои дастгирӣ ва муқовимат",
+                    "*Таҳлили фундаменталӣ:*\n• Омӯзиши вазъи иқтисодии умумӣ\n• Таҳлили нишондиҳандаҳои иқтисодӣ\n• Баҳодиҳии сиёсати пулии бонкҳои марказӣ\n• Баҳодиҳии ширкатҳо (барои саҳмияҳо)",
+                    "*Индикаторҳои маъруф:*\n• Moving Average (MA) – миёнаи ҳаракаткунанда\n• Relative Strength Index (RSI) – нишондиҳандаи муқоисавии қувва\n• Moving Average Convergence Divergence (MACD) – ҳамгироӣ ва дивергенсияи миёнаи ҳаракаткунанда\n• Bollinger Bands – хатҳои волатилӣ дар атрофи нарх",
+                    "*Сарчашмаҳои иттилоот:*\n• Тақвими иқтисодӣ\n• Хабарҳои молиявӣ\n• Нашрияҳои бонкҳои марказӣ\n• Ҳисоботи ширкатҳо"
+                ]
+            },
+            '4': {
+                'title': "⚠️ Идоракунии хавф",
+                'content': [
+                    "*Принсипҳои асосӣ:*\n• Муайян кардани хатари ҳадди аксар барои ҳар як муомила\n• Ҳаргиз беш аз 1-2% аз сармояи умумиро ба хатар нагузоред\n• Диверсификатсияи сармоягузориҳо\n• Ҳамеша Stop Loss истифода баред",
+                    "*Стратегияҳои идоракунии хавф:*\n• Stop Loss – фармоиш барои маҳдуд кардани зарар\n• Take Profit – фармоиш барои гирифтани фоида\n• Таносуби хавф ва даромад – 1:2 ё бештар тавсия дода мешавад\n• Money Management – тақсими дурусти сармоя",
+                    "*Хатоҳои маъмулӣ:*\n• Маблағгузории аз ҳад зиёд ба як муомила\n• Набудани нақшаи амал\n• Трейдинг бар хилофи тренд\n• Муомилаҳои ҳиссӣ\n• Мунтазам тағйир додани стратегия",
+                    "*Қоидаҳои муҳим:*\n• Танҳо бо маблағе, ки метавонед аз даст диҳед, савдо кунед\n• Журнали трейдинг пеш баред\n• Маблағи аз даст додаро зуд баргардонидан нахоҳед\n• Доимо дониши худро такмил диҳед"
+                ]
+            },
+            '5': {
+                'title': "🧠 Психологияи трейдинг",
+                'content': [
+                    "*Ҳолатҳои эмотсионалӣ:*\n• Тамаъ – хоҳиши гирифтани фоидаи аз ҳад зиёд\n• Тарс – метавонад ба қарорҳои нодуруст оварад\n• Умед – нигоҳ доштани мавқеи зараровар дар умеди тағйир\n• Афсӯс – нигоҳ доштани мавқеи зараровар барои напазируфтани зарар",
+                    "*Интизоми трейдинг:*\n• Риояи қатъии нақшаи худ\n• Идоракунии эмотсияҳо\n• Муносибати мунтазам ба трейдинг\n• Қобилияти қатъ кардан ҳангоми зарар",
+                    "*Нақшаи муомила:*\n• Дохилшавӣ ва баромад\n• Ҳаҷми муомила\n• Идоракунии хавф\n• Шартҳои лағви нақша",
+                    "*Тавсияҳо:*\n• Журнали трейдинг пеш баред ва натиҷаҳоро таҳлил кунед\n• Бо маблағи хурд оғоз кунед, то таҷриба пайдо кунед\n• Таҷрибаи худро дар ҳисоби демо санҷед\n• Истироҳат кунед, агар дар ҳолати бад бошед\n• Танаффус кунед, агар якчанд зарар пай дар пай бошад"
+                ]
+            },
+            '6': {
+                'title': "📈 Стратегияҳои савдо",
+                'content': [
+                    "*Намудҳои стратегияҳо:*\n• Стратегияҳои трендӣ – барои бозорҳои дар ҳаракат\n• Стратегияҳои рангӣ – барои бозорҳои боспред\n• Стратегияҳои скальпинг – барои гирифтани фоидаи хурди зуд\n• Стратегияҳои свинг – барои фоида аз тағйироти миёнамуҳлат",
+                    "*Стратегияҳои маъруф:*\n• Гузариши миёнаи ҳаракаткунанда – истифодаи гузариши MA барои муайян кардани тренд\n• Торговля с отскоком – интизори барқароршавии нарх аз сатҳҳо\n• Савдои шикасти сатҳ – интизори шикасти сатҳҳои муҳим\n• RSI саф – хариду фурӯш ҳангоми барзиёд/барзиёд харидани RSI",
+                    "*Интихоби стратегия:*\n• Ба сабки шахсии худ мувофиқат кунед\n• Ба марҳилаи бозор мувофиқат кунед (тренди ё диапазон)\n• Ба вақте, ки шумо метавонед ба трейдинг ҷудо кунед, мувофиқ бошед\n• Ба ҳаҷми сармояи шумо мувофиқ бошад",
+                    "*Такмили стратегия:*\n• Стратегияро дар ҳисоби демо санҷед\n• Якчанд муомиларо барои санҷиш гузаронед\n• Ба таърихи қаблӣ бори дигар санҷед (бектестинг)\n• Индикаторҳоро бо шароити ҷории бозор мутобиқ кунед"
+                ]
+            },
+            '7': {
+                'title': "👨‍💻 Амалияи трейдинг",
+                'content': [
+                    "*Ҳисоби демо:*\n• Барои омӯзиши платформа истифода баред\n• Стратегияҳоро бидуни хавфи воқеӣ санҷед\n• Малакаҳои мудирияти хавфро такмил диҳед\n• Ба ҳиссиёт худро одат кунонед",
+                    "*Оғози трейдинги воқеӣ:*\n• Бо маблағи хурд оғоз кунед\n• Андозаи мавқеъро маҳдуд кунед\n• Танҳо стратегияи санҷидашударо истифода баред\n• Журнали муфассали муомилаҳоро пеш баред",
+                    "*Журнали трейдинг:*\n• Сабаби вуруд ба муомила\n• Сатҳҳои Stop Loss ва Take Profit\n• Ҳаҷми мавқеъ\n• Натиҷаи муомила ва таҳлили он",
+                    "*Такмили малакаҳо:*\n• Муомилаҳои гузаштаро таҳлил кунед\n• Хатоҳои такрориро муайян кунед\n• Омилҳои муваффақиятро дарк кунед\n• Стратегияро мувофиқи натиҷаҳо такмил диҳед"
+                ]
+            },
+            '8': {
+                'title': "📚 Такмили малака",
+                'content': [
+                    "*Сарчашмаҳои омӯзиш:*\n• Китобҳо оид ба трейдинг ва таҳлили бозор\n• Вебинарҳо ва семинарҳои онлайн\n• Ҷомеаҳои трейдерон\n• Шарҳи бозорҳо аз коршиносон",
+                    "*Тавсияҳои китобҳо:*\n• \"Таҳлили техникӣ\" - Ҷон Мерфи\n• \"Савдогари интизомнок\" - Марк Дуглас\n• \"Хотираҳои савдогари саҳмия\" - Эдвин Лефевр\n• \"Равоншиносии трейдинг\" - Бретт Стинбаргер",
+                    "*Ҷанбаҳои омӯзиш:*\n• Таҳлили чартҳо ва нақшҳо\n• Такмили стратегияҳо\n• Мудирияти хавф\n• Назорати ҳиссиёт\n• Баҳодиҳии иқтисодӣ",
+                    "*Нуктаҳои муҳим:*\n• Трейдинги муваффақ раванди доимии омӯзиш ва такмил аст\n• Ба натиҷаҳои кӯтоҳмуддат таваҷҷуҳ накунед\n• Нишондиҳандаи муваффақият фоидаи устувор аст\n• Ба натиҷаҳои худ мунтазам назар кунед ва таҳлил намоед"
+                ]
+            }
+        },
+        'ru': {
+            '1': {
+                'title': "🔰 Основы трейдинга",
+                'content': [
+                    "*Что такое трейдинг?*\nТрейдинг — это деятельность по покупке и продаже финансовых активов (валюты, акции, товары) с целью получения прибыли.",
+                    "*Основная терминология:*\n• Спред — разница между ценой покупки и продажи\n• Волатильность — изменчивость цены актива\n• Ликвидность — легкость превращения актива в деньги\n• Take Profit/Stop Loss — ордера для контроля рисков",
+                    "*Типы рынков:*\n• Forex — валютный рынок\n• Фондовый рынок — покупка и продажа акций компаний\n• Фьючерсный рынок — контракты на покупку/продажу актива в будущем\n• Криптовалютный рынок — торговля цифровыми валютами",
+                    "*Стили трейдинга:*\n• Скальпинг — краткосрочные сделки с малой прибылью\n• Дневной трейдинг — сделки в течение дня\n• Свинг-трейдинг — сделки длительностью от нескольких дней до недель\n• Долгосрочные инвестиции — удержание позиции месяцами/годами"
+                ]
+            },
+            '2': {
+                'title': "🖥️ Выбор платформы",
+                'content': [
+                    "*Типы платформ:*\n• Брокеры — компании, предоставляющие трейдерам доступ к рынкам\n• Биржи — платформы, позволяющие торговать напрямую",
+                    "*Критерии выбора:*\n• Надежность — регулирование компании, история работы\n• Входной порог — минимальная сумма для инвестирования\n• Условия торговли — спреды, комиссии, кредитное плечо\n• Доступность средств — методы пополнения/вывода\n• Функционал — графики, индикаторы, мобильная платформа",
+                    "*Популярные платформы:*\n• MetaTrader 4/5 — для торговли на Forex и фьючерсами\n• TradingView — для анализа и торговли\n• Think or Swim — для торговли акциями и опционами\n• Binance — для торговли криптовалютами",
+                    "*Рекомендации:*\n• Сначала работайте на демо-счете\n• Настройте интерфейс под себя\n• Изучите возможности анализа и отчетности\n• Обеспечьте безопасность счета (двухфакторная аутентификация, сложный пароль)"
+                ]
+            },
+            '3': {
+                'title': "📊 Анализ рынка",
+                'content': [
+                    "*Технический анализ:*\n• Изучение графиков и паттернов\n• Использование индикаторов (MA, MACD, RSI)\n• Распознавание ценовых паттернов\n• Нахождение уровней поддержки и сопротивления",
+                    "*Фундаментальный анализ:*\n• Изучение общей экономической ситуации\n• Анализ экономических показателей\n• Оценка денежной политики центральных банков\n• Оценка компаний (для акций)",
+                    "*Популярные индикаторы:*\n• Moving Average (MA) — скользящая средняя\n• Relative Strength Index (RSI) — индекс относительной силы\n• Moving Average Convergence Divergence (MACD) — схождение и расхождение скользящих средних\n• Bollinger Bands — линии волатильности вокруг цены",
+                    "*Источники информации:*\n• Экономический календарь\n• Финансовые новости\n• Публикации центральных банков\n• Отчеты компаний"
+                ]
+            },
+            '4': {
+                'title': "⚠️ Управление рисками",
+                'content': [
+                    "*Основные принципы:*\n• Определение максимального риска на сделку\n• Никогда не рискуйте более чем 1-2% от общего капитала\n• Диверсификация инвестиций\n• Всегда используйте Stop Loss",
+                    "*Стратегии управления рисками:*\n• Stop Loss — ордер для ограничения убытка\n• Take Profit — ордер для фиксации прибыли\n• Соотношение риска и прибыли — рекомендуется 1:2 или больше\n• Money Management — правильное распределение капитала",
+                    "*Распространенные ошибки:*\n• Слишком большое вложение в одну сделку\n• Отсутствие плана действий\n• Торговля против тренда\n• Эмоциональные сделки\n• Постоянная смена стратегии",
+                    "*Важные правила:*\n• Торгуйте только деньгами, которые можете позволить себе потерять\n• Ведите торговый журнал\n• Не стремитесь быстро отыграть потерянную сумму\n• Постоянно совершенствуйте свои знания"
+                ]
+            },
+            '5': {
+                'title': "🧠 Психология трейдинга",
+                'content': [
+                    "*Эмоциональные состояния:*\n• Жадность — желание получить чрезмерную прибыль\n• Страх — может привести к неправильным решениям\n• Надежда — удержание убыточной позиции в надежде на разворот\n• Сожаление — удержание убыточной позиции для непризнания убытка",
+                    "*Торговая дисциплина:*\n• Строгое следование своему плану\n• Управление эмоциями\n• Системный подход к трейдингу\n• Способность остановиться при убытках",
+                    "*План сделки:*\n• Точки входа и выхода\n• Размер сделки\n• Управление рисками\n• Условия отмены плана",
+                    "*Рекомендации:*\n• Ведите торговый журнал и анализируйте результаты\n• Начинайте с малых сумм, чтобы приобрести опыт\n• Тестируйте свой опыт на демо-счете\n• Отдыхайте, если вы в плохом состоянии\n• Делайте перерыв при нескольких убыточных сделках подряд"
+                ]
+            },
+            '6': {
+                'title': "📈 Торговые стратегии",
+                'content': [
+                    "*Типы стратегий:*\n• Трендовые стратегии — для движущихся рынков\n• Диапазонные стратегии — для консолидирующихся рынков\n• Скальпинговые стратегии — для быстрого получения малой прибыли\n• Свинг-стратегии — для получения прибыли от среднесрочных изменений",
+                    "*Популярные стратегии:*\n• Пересечение скользящих средних — использование пересечения MA для определения тренда\n• Торговля от отскока — ожидание восстановления цены от уровней\n• Торговля на пробое уровня — ожидание прорыва важных уровней\n• RSI перепроданность/перекупленность — покупка/продажа при экстремальных значениях RSI",
+                    "*Выбор стратегии:*\n• Соответствие вашему личному стилю\n• Соответствие фазе рынка (трендовый или диапазонный)\n• Соответствие времени, которое вы можете уделять трейдингу\n• Соответствие размеру вашего капитала",
+                    "*Совершенствование стратегии:*\n• Тестируйте стратегию на демо-счете\n• Проведите несколько сделок для тестирования\n• Проверьте на исторических данных (бэктестинг)\n• Адаптируйте индикаторы к текущим рыночным условиям"
+                ]
+            },
+            '7': {
+                'title': "👨‍💻 Практика трейдинга",
+                'content': [
+                    "*Демо-счет:*\n• Используйте для изучения платформы\n• Тестируйте стратегии без реального риска\n• Совершенствуйте навыки управления рисками\n• Привыкайте к эмоциям",
+                    "*Начало реальной торговли:*\n• Начинайте с небольшой суммы\n• Ограничивайте размер позиции\n• Используйте только проверенную стратегию\n• Ведите подробный журнал сделок",
+                    "*Торговый журнал:*\n• Причина входа в сделку\n• Уровни Stop Loss и Take Profit\n• Размер позиции\n• Результат сделки и его анализ",
+                    "*Совершенствование навыков:*\n• Анализируйте прошлые сделки\n• Выявляйте повторяющиеся ошибки\n• Определяйте факторы успеха\n• Корректируйте стратегию в соответствии с результатами"
+                ]
+            },
+            '8': {
+                'title': "📚 Повышение квалификации",
+                'content': [
+                    "*Источники обучения:*\n• Книги по трейдингу и анализу рынка\n• Вебинары и онлайн-семинары\n• Сообщества трейдеров\n• Обзоры рынков от экспертов",
+                    "*Рекомендуемые книги:*\n• \"Технический анализ\" - Джон Мэрфи\n• \"Дисциплинированный трейдер\" - Марк Дуглас\n• \"Воспоминания биржевого спекулянта\" - Эдвин Лефевр\n• \"Психология трейдинга\" - Бретт Стинбаргер",
+                    "*Аспекты обучения:*\n• Анализ графиков и паттернов\n• Совершенствование стратегий\n• Управление рисками\n• Контроль эмоций\n• Экономическая оценка",
+                    "*Важные моменты:*\n• Успешный трейдинг — это постоянный процесс обучения и совершенствования\n• Не фокусируйтесь на краткосрочных результатах\n• Показатель успеха — стабильная прибыль\n• Регулярно просматривайте и анализируйте свои результаты"
+                ]
+            }
+        },
+        'uz': {
+            '1': {
+                'title': "🔰 Treyding asoslari",
+                'content': [
+                    "*Treyding nima?*\nTreyding - foyda olish maqsadida moliyaviy aktivlarni (valyuta, aksiyalar, tovarlar) sotib olish va sotish faoliyatidir.",
+                    "*Asosiy terminologiya:*\n• Spred - sotib olish va sotish narxlari o'rtasidagi farq\n• Volatillik - aktiv narxining o'zgaruvchanligi\n• Likvidlik - aktivni pulga aylantirish qulayligi\n• Take Profit/Stop Loss - xavflarni nazorat qilish uchun buyurtmalar",
+                    "*Bozor turlari:*\n• Forex - valyuta bozori\n• Fond bozori - kompaniya aksiyalarini sotib olish va sotish\n• Fyuchers bozori - kelajakda aktivni sotib olish/sotish shartnomasi\n• Kriptovalyuta bozori - raqamli valyutalar savdosi",
+                    "*Treyding uslublari:*\n• Skalping - kam foyda bilan qisqa muddatli bitimlar\n• Kunlik treyding - kun davomida bitimlar\n• Sving treyding - bir necha kundan bir necha haftagacha bo'lgan bitimlar\n• Uzoq muddatli investitsiyalar - pozitsiyani oylar/yillar davomida ushlab turish"
+                ]
+            },
+            '2': {
+                'title': "🖥️ Platforma tanlash",
+                'content': [
+                    "*Platforma turlari:*\n• Brokerlar - treyderlarga bozorlarga kirish imkonini beruvchi kompaniyalar\n• Birjalar - to'g'ridan-to'g'ri savdo qilish imkonini beruvchi platformalar",
+                    "*Tanlash mezonlari:*\n• Ishonchlilik - kompaniyaning tartibga solinishi, faoliyat tarixi\n• Kirish bo'sag'asi - investitsiyalash uchun minimal summa\n• Savdo shartlari - spredlar, komissiyalar, kredit yelkasi\n• Mablag'lar mavjudligi - to'ldirish/chiqarish usullari\n• Funktsionalligi - grafiklar, indikatorlar, mobil platforma",
+                    "*Mashhur platformalar:*\n• MetaTrader 4/5 - Forex va fyuchers savdosi uchun\n• TradingView - tahlil va savdo uchun\n• Think or Swim - aksiyalar va opsionlar savdosi uchun\n• Binance - kriptovalyutalar savdosi uchun",
+                    "*Tavsiyalar:*\n• Avval demo hisobda ishlang\n• Interfeysni o'zingizga moslashtirib oling\n• Tahlil va hisobot imkoniyatlarini o'rganing\n• Hisob xavfsizligini ta'minlang (ikki faktorli autentifikatsiya, murakkab parol)"
+                ]
+            },
+            '3': {
+                'title': "📊 Bozor tahlili",
+                'content': [
+                    "*Texnik tahlil:*\n• Grafiklar va patternlarni o'rganish\n• Indikatorlardan foydalanish (MA, MACD, RSI)\n• Narx patternlarini aniqlash\n• Qo'llab-quvvatlash va qarshilik darajalarini topish",
+                    "*Fundamental tahlil:*\n• Umumiy iqtisodiy vaziyatni o'rganish\n• Iqtisodiy ko'rsatkichlarni tahlil qilish\n• Markaziy banklarning pul siyosatini baholash\n• Kompaniyalarni baholash (aksiyalar uchun)",
+                    "*Mashhur indikatorlar:*\n• Moving Average (MA) - harakatlanuvchi o'rtacha\n• Relative Strength Index (RSI) - nisbiy kuch indeksi\n• Moving Average Convergence Divergence (MACD) - harakatlanuvchi o'rtachalarning konvergensiyasi va divergensiyasi\n• Bollinger Bands - narx atrofidagi volatillik chiziqlari",
+                    "*Ma'lumot manbalari:*\n• Iqtisodiy kalendar\n• Moliyaviy yangiliklar\n• Markaziy banklarning nashriyotlari\n• Kompaniyalar hisobotlari"
+                ]
+            },
+            '4': {
+                'title': "⚠️ Xavflarni boshqarish",
+                'content': [
+                    "*Asosiy tamoyillar:*\n• Bitta bitim uchun maksimal xavfni aniqlash\n• Hech qachon umumiy kapitalning 1-2% dan ko'p qismini riskka qo'ymang\n• Investitsiyalarni diversifikatsiya qilish\n• Doimo Stop Loss dan foydalaning",
+                    "*Xavflarni boshqarish strategiyalari:*\n• Stop Loss - zararni cheklash uchun buyurtma\n• Take Profit - foydani qadlash uchun buyurtma\n• Risk va foyda nisbati - 1:2 yoki undan ko'proq tavsiya qilinadi\n• Money Management - kapitalni to'g'ri taqsimlash",
+                    "*Umumiy xatolar:*\n• Bitta bitimga juda katta mablag' qo'yish\n• Harakatlar rejasining yo'qligi\n• Trendga qarshi savdo\n• Emotsional bitimlar\n• Strategiyani doimiy o'zgartirish",
+                    "*Muhim qoidalar:*\n• Faqat yo'qotishni rozi bo'lgan pullar bilan savdo qiling\n• Savdo jurnaliga ega bo'ling\n• Yo'qotilgan summani tezda qaytarib olishga urinmang\n• Bilimingizni doimiy ravishda takomillashtiring"
+                ]
+            },
+            '5': {
+                'title': "🧠 Treyding psixologiyasi",
+                'content': [
+                    "*Emotsional holatlar:*\n• Ochko'zlik - o'ta ko'p foyda olish istagi\n• Qo'rquv - noto'g'ri qarorlarga olib kelishi mumkin\n• Umid - burilish umidida zararli pozitsiyani ushlab turish\n• Afsus - zararni tan olmaslik uchun zararli pozitsiyani ushlab turish",
+                    "*Savdo intizomi:*\n• O'z rejangizga qat'iy rioya qilish\n• Emotsiyalarni boshqarish\n• Treydingga tizimli yondashish\n• Zararlar paytida to'xtay olish qobiliyati",
+                    "*Bitim rejasi:*\n• Kirish va chiqish nuqtalari\n• Bitim hajmi\n• Xavflarni boshqarish\n• Rejani bekor qilish shartlari",
+                    "*Tavsiyalar:*\n• Savdo jurnaliga ega bo'ling va natijalarni tahlil qiling\n• Tajriba orttirish uchun kam summalar bilan boshlang\n• Tajribangizni demo hisobda sinab ko'ring\n• Holingiz yomon bo'lsa, dam oling\n• Ketma-ket bir nechta zararly bitimlar bo'lganida tanaffus qiling"
+                ]
+            },
+            '6': {
+                'title': "📈 Savdo strategiyalari",
+                'content': [
+                    "*Strategiya turlari:*\n• Trend strategiyalari - harakatlanayotgan bozorlar uchun\n• Diapazon strategiyalari - konsolidatsiyalanayotgan bozorlar uchun\n• Skalping strategiyalari - tez kichik foyda olish uchun\n• Sving strategiyalari - o'rta muddatli o'zgarishlardan foyda olish uchun",
+                    "*Mashhur strategiyalar:*\n• Harakatlanuvchi o'rtacha kesishish - trendni aniqlash uchun MA kesishishidan foydalanish\n• Sakrashdan savdo - darajalardan narx tiklanishini kutish\n• Darajani buzishdan savdo - muhim darajalarni yorib o'tishini kutish\n• RSI o'ta sotilgan/o'ta sotib olingan - RSI ekstremal qiymatlarida sotib olish/sotish",
+                    "*Strategiya tanlash:*\n• Shaxsiy uslubingizga mos kelishi\n• Bozor fazasiga mos kelishi (trend yoki diapazon)\n• Treydingga ajratadigan vaqtingizga mos kelishi\n• Kapitalingiz hajmiga mos kelishi",
+                    "*Strategiyani takomillashtirish:*\n• Strategiyani demo hisobda sinab ko'ring\n• Sinov uchun bir nechta bitimlarni amalga oshiring\n• Tarixiy ma'lumotlarda tekshiring (bektesting)\n• Indikatorlarni joriy bozor sharoitlariga moslashtirib oling"
+                ]
+            },
+            '7': {
+                'title': "👨‍💻 Treyding amaliyoti",
+                'content': [
+                    "*Demo hisob:*\n• Platformani o'rganish uchun foydalaning\n• Haqiqiy xavf bo'lmagan holda strategiyalarni sinab ko'ring\n• Xavflarni boshqarish ko'nikmalarini takomillashtiring\n• Emotsiyalarga ko'nikib boring",
+                    "*Haqiqiy savdoni boshlash:*\n• Kichik summadan boshlang\n• Pozitsiya hajmini cheklang\n• Faqat tekshirilgan strategiyadan foydalaning\n• Batafsil bitimlar jurnalini yuritib boring",
+                    "*Savdo jurnali:*\n• Bitimga kirish sababi\n• Stop Loss va Take Profit darajalari\n• Pozitsiya hajmi\n• Bitim natijasi va uning tahlili",
+                    "*Ko'nikmalarni takomillashtirish:*\n• O'tgan bitimlarni tahlil qiling\n• Takrorlanuvchi xatolarni aniqlang\n• Muvaffaqiyat omillarini aniqlang\n• Natijalarga ko'ra strategiyani o'zgartiring"
+                ]
+            },
+            '8': {
+                'title': "📚 Malakani oshirish",
+                'content': [
+                    "*O'rganish manbalari:*\n• Treyding va bozor tahlili bo'yicha kitoblar\n• Vebinarlar va onlayn seminarlar\n• Treyderlar hamjamiyati\n• Ekspertlardan bozor sharhlari",
+                    "*Tavsiya etilgan kitoblar:*\n• \"Texnik tahlil\" - Jon Merfi\n• \"Intizomli treyding\" - Mark Duglas\n• \"Birja spekulyantining xotiralari\" - Edvin Lefevr\n• \"Treyding psixologiyasi\" - Brett Stinbarger",
+                    "*O'rganish jihatlari:*\n• Grafiklar va patternlarni tahlil qilish\n• Strategiyalarni takomillashtirish\n• Xavflarni boshqarish\n• Emotsiyalarni nazorat qilish\n• Iqtisodiy baholash",
+                    "*Muhim nuqtalar:*\n• Muvaffaqiyatli treyding - o'rganish va takomillashtirishning doimiy jarayonidir\n• Qisqa muddatli natijalarga diqqatingizni qaratmang\n• Muvaffaqiyat ko'rsatkichi - barqaror foyda\n• Natijalaringizni muntazam ko'rib chiqing va tahlil qiling"
+                ]
+            }
+        },
+        'kk': {
+            '1': {
+                'title': "🔰 Трейдинг негіздері",
+                'content': [
+                    "*Трейдинг дегеніміз не?*\nТрейдинг — бұл пайда табу мақсатында қаржы активтерін (валюта, акциялар, тауарлар) сатып алу және сату бойынша қызмет.",
+                    "*Негізгі терминология:*\n• Спред — сатып алу және сату бағасы арасындағы айырмашылық\n• Волатильділік — актив бағасының өзгергіштігі\n• Өтімділік — активті ақшаға айналдыру жеңілдігі\n• Take Profit/Stop Loss — тәуекелдерді бақылауға арналған тапсырыстар",
+                    "*Нарық түрлері:*\n• Forex — валюта нарығы\n• Қор нарығы — компания акцияларын сату және сатып алу\n• Фьючерс нарығы — болашақта активті сатып алу/сату келісімшарттары\n• Криптовалюта нарығы — цифрлық валюталармен сауда",
+                    "*Трейдинг стильдері:*\n• Скальпинг — аз пайдамен қысқа мерзімді мәмілелер\n• Күндізгі трейдинг — күн ішіндегі мәмілелер\n• Свинг-трейдинг — бірнеше күннен бірнеше аптаға дейін созылатын мәмілелер\n• Ұзақ мерзімді инвестициялар — позицияны айлар/жылдар бойы ұстау"
+                ]
+            },
+            '2': {
+                'title': "🖥️ Платформаны таңдау",
+                'content': [
+                    "*Платформа түрлері:*\n• Брокерлер — трейдерлерге нарықтарға қол жетімділік беретін компаниялар\n• Биржалар — тікелей сауда жасауға мүмкіндік беретін платформалар",
+                    "*Таңдау критерийлері:*\n• Сенімділік — компанияның реттелуі, жұмыс тарихы\n• Кіру шегі — инвестиция салуға минималды сома\n• Сауда шарттары — спредтер, комиссиялар, кредит иығы\n• Қаражат қолжетімділігі — толтыру/шығару әдістері\n• Функционал — графиктер, индикаторлар, мобильді платформа",
+                    "*Танымал платформалар:*\n• MetaTrader 4/5 — Forex және фьючерстермен сауда жасауға арналған\n• TradingView — талдау және сауда жасауға арналған\n• Think or Swim — акциялар мен опциондармен сауда жасауға арналған\n• Binance — криптовалюталармен сауда жасауға арналған",
+                    "*Ұсыныстар:*\n• Алдымен демо-шотта жұмыс істеңіз\n• Интерфейсті өзіңізге бейімдеңіз\n• Талдау және есеп беру мүмкіндіктерін зерттеңіз\n• Шот қауіпсіздігін қамтамасыз етіңіз (екі факторлы аутентификация, күрделі құпия сөз)"
+                ]
+            },
+            '3': {
+                'title': "📊 Нарықты талдау",
+                'content': [
+                    "*Техникалық талдау:*\n• Графиктер мен паттерндерді зерттеу\n• Индикаторларды пайдалану (MA, MACD, RSI)\n• Баға паттерндерін тану\n• Қолдау және кедергі деңгейлерін табу",
+                    "*Іргелі талдау:*\n• Жалпы экономикалық жағдайды зерттеу\n• Экономикалық көрсеткіштерді талдау\n• Орталық банктердің ақша саясатын бағалау\n• Компанияларды бағалау (акциялар үшін)",
+                    "*Танымал индикаторлар:*\n• Moving Average (MA) — жылжымалы орташа\n• Relative Strength Index (RSI) — салыстырмалы күш индексі\n• Moving Average Convergence Divergence (MACD) — жылжымалы орташалардың жинақталуы және айырылуы\n• Bollinger Bands — баға айналасындағы волатильділік сызықтары",
+                    "*Ақпарат көздері:*\n• Экономикалық күнтізбе\n• Қаржы жаңалықтары\n• Орталық банктердің басылымдары\n• Компаниялардың есептері"
+                ]
+            },
+            '4': {
+                'title': "⚠️ Тәуекелдерді басқару",
+                'content': [
+                    "*Негізгі принциптер:*\n• Мәміле бойынша максималды тәуекелді анықтау\n• Жалпы капиталдың 1-2%-дан артық тәуекелге бармаңыз\n• Инвестицияларды әртараптандыру\n• Әрдайым Stop Loss қолданыңыз",
+                    "*Тәуекелдерді басқару стратегиялары:*\n• Stop Loss — шығынды шектеуге арналған тапсырыс\n• Take Profit — пайданы бекітуге арналған тапсырыс\n• Тәуекел мен пайда арақатынасы — 1:2 немесе одан да көп ұсынылады\n• Money Management — капиталды дұрыс бөлу",
+                    "*Жиі кездесетін қателер:*\n• Бір мәмілеге тым көп инвестиция салу\n• Әрекет жоспарының болмауы\n• Трендке қарсы сауда жасау\n• Эмоционалды мәмілелер\n• Стратегияны үнемі ауыстыру",
+                    "*Маңызды ережелер:*\n• Тек өзіңіз жоғалтуға дайын қаражатпен сауда жасаңыз\n• Сауда журналын жүргізіңіз\n• Жоғалтқан соманы тез қайтаруға тырыспаңыз\n• Білімді үнемі жетілдіріп отырыңыз"
+                ]
+            },
+            '5': {
+                'title': "🧠 Трейдинг психологиясы",
+                'content': [
+                    "*Эмоционалды жағдайлар:*\n• Ашкөздік — шамадан тыс пайда табуға ұмтылу\n• Қорқыныш — дұрыс емес шешімдерге әкелуі мүмкін\n• Үміт — бұрылуға үміттеніп, шығынды позицияны ұстап тұру\n• Өкініш — шығынды мойындамау үшін шығынды позицияны ұстап тұру",
+                    "*Сауда тәртібі:*\n• Жоспарды қатаң ұстану\n• Эмоцияларды басқару\n• Трейдингке жүйелі көзқарас\n• Шығын кезінде тоқтай білу",
+                    "*Мәміле жоспары:*\n• Кіру және шығу нүктелері\n• Мәміле көлемі\n• Тәуекелдерді басқару\n• Жоспарды тоқтату шарттары",
+                    "*Ұсыныстар:*\n• Сауда журналын жүргізіп, нәтижелерді талдаңыз\n• Тәжірибе жинау үшін шағын сомадан бастаңыз\n• Тәжірибеңізді демо-шотта тексеріңіз\n• Жағдайыңыз нашар болса, демалыңыз\n• Бірнеше шығынды мәміледен кейін үзіліс жасаңыз"
+                ]
+            },
+            '6': {
+                'title': "📈 Сауда стратегиялары",
+                'content': [
+                    "*Стратегия түрлері:*\n• Трендтік стратегиялар — қозғалыстағы нарықтар үшін\n• Диапазондық стратегиялар — тұрақтанған нарықтар үшін\n• Скальпинг стратегиялары — аз пайданы жылдам алу үшін\n• Свинг стратегиялары — орта мерзімді өзгерістерден пайда табу үшін",
+                    "*Танымал стратегиялар:*\n• Жылжымалы орташалардың қиылысуы — трендті анықтау үшін MA қиылысуын пайдалану\n• Қайта тебілу саудасы — бағаның деңгейлерден қалпына келуін күту\n• Деңгейді бұзу саудасы — маңызды деңгейлердің бұзылуын күту\n• RSI артық сатылым/артық сатып алу — RSI экстремалды мәндерінде сатып алу/сату",
+                    "*Стратегияны таңдау:*\n• Сіздің жеке стиліңізге сәйкестік\n• Нарық фазасына сәйкестік (трендтік немесе диапазондық)\n• Трейдингке бөлетін уақытыңызға сәйкестік\n• Капитал көлеміңізге сәйкестік",
+                    "*Стратегияны жетілдіру:*\n• Стратегияны демо-шотта тексеріңіз\n• Тексеру үшін бірнеше мәміле жасаңыз\n• Тарихи деректерде тексеріңіз (бэктестинг)\n• Индикаторларды ағымдағы нарық жағдайларына бейімдеңіз"
+                ]
+            },
+            '7': {
+                'title': "👨‍💻 Трейдинг практикасы",
+                'content': [
+                    "*Демо-шот:*\n• Платформаны үйрену үшін пайдаланыңыз\n• Стратегияларды нақты тәуекелсіз тексеріңіз\n• Тәуекелдерді басқару дағдыларын жетілдіріңіз\n• Эмоцияларға үйреніңіз",
+                    "*Нақты сауданы бастау:*\n• Шағын сомадан бастаңыз\n• Позиция көлемін шектеңіз\n• Тек тексерілген стратегияны пайдаланыңыз\n• Толық мәмілелер журналын жүргізіңіз",
+                    "*Сауда журналы:*\n• Мәмілеге кіру себебі\n• Stop Loss және Take Profit деңгейлері\n• Позиция көлемі\n• Мәміле нәтижесі және оны талдау",
+                    "*Дағдыларды жетілдіру:*\n• Өткен мәмілелерді талдаңыз\n• Қайталанатын қателерді анықтаңыз\n• Табыс факторларын анықтаңыз\n• Стратегияны нәтижелерге сәйкес түзетіңіз"
+                ]
+            },
+            '8': {
+                'title': "📚 Біліктілікті арттыру",
+                'content': [
+                    "*Оқу көздері:*\n• Трейдинг және нарық талдауы бойынша кітаптар\n• Вебинарлар және онлайн-семинарлар\n• Трейдерлер қауымдастығы\n• Сарапшылардан нарық шолулары",
+                    "*Ұсынылатын кітаптар:*\n• \"Техникалық талдау\" - Джон Мерфи\n• \"Тәртіпті трейдер\" - Марк Дуглас\n• \"Биржа спекулянтының естеліктері\" - Эдвин Лефевр\n• \"Трейдинг психологиясы\" - Бретт Стинбаргер",
+                    "*Оқу аспектілері:*\n• Графиктер мен паттерндерді талдау\n• Стратегияларды жетілдіру\n• Тәуекелдерді басқару\n• Эмоцияларды бақылау\n• Экономикалық бағалау",
+                    "*Маңызды сәттер:*\n• Табысты трейдинг — бұл үнемі оқу және жетілдіру процесі\n• Қысқа мерзімді нәтижелерге фокус жасамаңыз\n• Табыс көрсеткіші — тұрақты пайда\n• Нәтижелеріңізді жүйелі түрде қарап, талдаңыз"
+                ]
+            }
+        },
+        'en': {
+            '1': {
+                'title': "🔰 Trading Basics",
+                'content': [
+                    "*What is trading?*\nTrading is the activity of buying and selling financial assets (currencies, stocks, commodities) with the aim of making a profit.",
+                    "*Basic terminology:*\n• Spread — the difference between buy and sell prices\n• Volatility — the variability of an asset's price\n• Liquidity — the ease of converting an asset into cash\n• Take Profit/Stop Loss — orders for risk control",
+                    "*Types of markets:*\n• Forex — currency market\n• Stock market — buying and selling company shares\n• Futures market — contracts for buying/selling an asset in the future\n• Cryptocurrency market — trading digital currencies",
+                    "*Trading styles:*\n• Scalping — short-term trades with small profit\n• Day trading — trades within a day\n• Swing trading — trades lasting from several days to weeks\n• Long-term investments — holding a position for months/years"
+                ]
+            },
+            '2': {
+                'title': "🖥️ Platform Selection",
+                'content': [
+                    "*Types of platforms:*\n• Brokers — companies that provide traders with access to markets\n• Exchanges — platforms that allow direct trading",
+                    "*Selection criteria:*\n• Reliability — company regulation, operating history\n• Entry threshold — minimum amount for investment\n• Trading conditions — spreads, commissions, leverage\n• Fund accessibility — deposit/withdrawal methods\n• Functionality — charts, indicators, mobile platform",
+                    "*Popular platforms:*\n• MetaTrader 4/5 — for Forex and futures trading\n• TradingView — for analysis and trading\n• Think or Swim — for stock and options trading\n• Binance — for cryptocurrency trading",
+                    "*Recommendations:*\n• First work on a demo account\n• Customize the interface to suit your needs\n• Explore analysis and reporting capabilities\n• Ensure account security (two-factor authentication, complex password)"
+                ]
+            },
+            '3': {
+                'title': "📊 Market Analysis",
+                'content': [
+                    "*Technical analysis:*\n• Studying charts and patterns\n• Using indicators (MA, MACD, RSI)\n• Recognizing price patterns\n• Finding support and resistance levels",
+                    "*Fundamental analysis:*\n• Studying the general economic situation\n• Analyzing economic indicators\n• Evaluating monetary policy of central banks\n• Evaluating companies (for stocks)",
+                    "*Popular indicators:*\n• Moving Average (MA) — smooths price data\n• Relative Strength Index (RSI) — measures momentum\n• Moving Average Convergence Divergence (MACD) — shows relationship between moving averages\n• Bollinger Bands — volatility lines around price",
+                    "*Information sources:*\n• Economic calendar\n• Financial news\n• Central bank publications\n• Company reports"
+                ]
+            },
+            '4': {
+                'title': "⚠️ Risk Management",
+                'content': [
+                    "*Basic principles:*\n• Determining maximum risk per trade\n• Never risk more than 1-2% of total capital\n• Diversification of investments\n• Always use Stop Loss",
+                    "*Risk management strategies:*\n• Stop Loss — order to limit loss\n• Take Profit — order to secure profit\n• Risk to reward ratio — 1:2 or more is recommended\n• Money Management — proper capital allocation",
+                    "*Common mistakes:*\n• Too large investment in one trade\n• Lack of action plan\n• Trading against the trend\n• Emotional trades\n• Constant strategy change",
+                    "*Important rules:*\n• Trade only with money you can afford to lose\n• Keep a trading journal\n• Don't try to quickly recover a lost amount\n• Continuously improve your knowledge"
+                ]
+            },
+            '5': {
+                'title': "🧠 Trading Psychology",
+                'content': [
+                    "*Emotional states:*\n• Greed — desire to get excessive profit\n• Fear — can lead to wrong decisions\n• Hope — holding a losing position hoping for a reversal\n• Regret — holding a losing position to avoid acknowledging the loss",
+                    "*Trading discipline:*\n• Strict adherence to your plan\n• Managing emotions\n• Systematic approach to trading\n• Ability to stop during losses",
+                    "*Trade plan:*\n• Entry and exit points\n• Position size\n• Risk management\n• Plan cancellation conditions",
+                    "*Recommendations:*\n• Keep a trading journal and analyze results\n• Start with small amounts to gain experience\n• Test your experience on a demo account\n• Rest if you are in a bad state\n• Take a break after several consecutive losing trades"
+                ]
+            },
+            '6': {
+                'title': "📈 Trading Strategies",
+                'content': [
+                    "*Types of strategies:*\n• Trend strategies — for moving markets\n• Range strategies — for consolidating markets\n• Scalping strategies — for quick small profit\n• Swing strategies — for profit from medium-term changes",
+                    "*Popular strategies:*\n• Moving Average Crossover — using MA crossing to determine trend\n• Trading from bounce — waiting for price recovery from levels\n• Breakout trading — waiting for breakthrough of important levels\n• RSI oversold/overbought — buying/selling at extreme RSI values",
+                    "*Choosing a strategy:*\n• Match your personal style\n• Match the market phase (trending or ranging)\n• Match the time you can devote to trading\n• Match the size of your capital",
+                    "*Refining strategy:*\n• Test the strategy on a demo account\n• Conduct several trades for testing\n• Check on historical data (backtesting)\n• Adapt indicators to current market conditions"
+                ]
+            },
+            '7': {
+                'title': "👨‍💻 Trading Practice",
+                'content': [
+                    "*Demo account:*\n• Use to learn the platform\n• Test strategies without real risk\n• Improve risk management skills\n• Get used to emotions",
+                    "*Starting real trading:*\n• Start with a small amount\n• Limit position size\n• Use only proven strategy\n• Keep a detailed trading journal",
+                    "*Trading journal:*\n• Reason for entering the trade\n• Stop Loss and Take Profit levels\n• Position size\n• Trade result and its analysis",
+                    "*Skill improvement:*\n• Analyze past trades\n• Identify recurring mistakes\n• Determine success factors\n• Adjust strategy according to results"
+                ]
+            },
+            '8': {
+                'title': "📚 Skill Enhancement",
+                'content': [
+                    "*Learning sources:*\n• Books on trading and market analysis\n• Webinars and online seminars\n• Trader communities\n• Market reviews from experts",
+                    "*Recommended books:*\n• \"Technical Analysis\" - John Murphy\n• \"The Disciplined Trader\" - Mark Douglas\n• \"Reminiscences of a Stock Operator\" - Edwin Lefèvre\n• \"Trading Psychology\" - Brett Steenbarger",
+                    "*Learning aspects:*\n• Analysis of charts and patterns\n• Strategy refinement\n• Risk management\n• Emotion control\n• Economic assessment",
+                    "*Important points:*\n• Successful trading is a continuous process of learning and improvement\n• Don't focus on short-term results\n• The indicator of success is stable profit\n• Regularly review and analyze your results"
+                ]
+            }
+        }
+    }
+    
+    # Локализованные кнопки
+    button_texts = {
+        'tg': {
+            'back': "↩️ Бозгашт",
+            'main': "🏠 Ба саҳифаи асосӣ"
+        },
+        'ru': {
+            'back': "↩️ Назад",
+            'main': "🏠 На главную"
+        },
+        'uz': {
+            'back': "↩️ Orqaga",
+            'main': "🏠 Bosh sahifaga"
+        },
+        'kk': {
+            'back': "↩️ Артқа",
+            'main': "🏠 Басты бетке"
+        },
+        'en': {
+            'back': "↩️ Back",
+            'main': "🏠 Home"
+        }
+    }
+    
+    # Получаем локализованные тексты для кнопок
+    button_text = button_texts.get(lang_code, button_texts['ru'])
+    
+    # Получаем содержимое выбранной темы
+    topic_data = topic_content.get(lang_code, topic_content['ru']).get(topic_number)
+    
+    if not topic_data:
+        # Если тема не найдена, возвращаемся к списку тем
+        query.data = "trading_beginner"
+        return await handle_trading_beginner(update, context)
+    
+    # Формируем сообщение с содержимым темы
+    message = f"{topic_data['title']}\n\n" + "\n\n".join(topic_data['content'])
+    
+    # Создаем клавиатуру с кнопками навигации
+    keyboard = [
+        [InlineKeyboardButton(button_text['back'], callback_data="trading_beginner")],
+        [InlineKeyboardButton(button_text['main'], callback_data="return_to_main")]
+    ]
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def handle_trading_strategies(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для раздела стратегии трейдинга"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Processing trading_strategies request for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+    except Exception as e:
+        logger.error(f"Error in handle_trading_strategies: {e}")
+        lang_code = 'ru'
+    
+    # Проверяем, запрошена ли конкретная стратегия
+    if query.data.startswith("strategy_"):
+        # Извлекаем имя стратегии из callback_data
+        strategy_name = query.data.replace("strategy_", "")
+        await show_strategy_details(update, context, strategy_name, lang_code)
+        return
+    
+    # Тексты заголовков на разных языках
+    titles = {
+        'tg': '📈 Стратегияҳои трейдинг',
+        'ru': '📈 Стратегии трейдинга',
+        'uz': '📈 Treyding strategiyalari',
+        'kk': '📈 Трейдинг стратегиялары',
+        'en': '📈 Trading Strategies'
+    }
+    
+    # Тексты описаний на разных языках
+    descriptions = {
+        'tg': 'Интихоб намоед стратегияи савдоро барои гирифтани маълумоти муфассал ва мисолҳо:',
+        'ru': 'Выберите торговую стратегию для получения подробной информации и примеров:',
+        'uz': 'Batafsil ma\'lumot va misollar olish uchun savdo strategiyasini tanlang:',
+        'kk': 'Толық ақпарат пен мысалдар алу үшін сауда стратегиясын таңдаңыз:',
+        'en': 'Select a trading strategy for detailed information and examples:'
+    }
+    
+    # Кнопки стратегий на разных языках
+    strategies_buttons = {
+        'tg': [
+            ["📊 Стратегияи руйтамоили", "📉 Инверсия"],
+            ["📏 Савдои фосилавӣ", "⚡ Скальпинг"],
+            ["💱 Арбитраж", "🕰️ Позитрейдинг"],
+            ["🌙 Савдои шабона"]
+        ],
+        'ru': [
+            ["📊 Трендовая стратегия", "📉 Разворотная стратегия"],
+            ["📏 Диапазонная торговля", "⚡ Скальпинг"],
+            ["💱 Арбитраж", "🕰️ Позиционная торговля"],
+            ["🌙 Овернайт-трейдинг"]
+        ],
+        'uz': [
+            ["📊 Trend strategiyasi", "📉 Aylanish strategiyasi"],
+            ["📏 Diapazonda savdo", "⚡ Skalping"],
+            ["💱 Arbitraj", "🕰️ Pozitsion savdo"],
+            ["🌙 Tungi savdo"]
+        ],
+        'kk': [
+            ["📊 Тренд стратегиясы", "📉 Бұрылыс стратегиясы"],
+            ["📏 Диапазонды сауда", "⚡ Скальпинг"],
+            ["💱 Арбитраж", "🕰️ Позициялық сауда"],
+            ["🌙 Түнгі сауда"]
+        ],
+        'en': [
+            ["📊 Trend Trading", "📉 Reversal Trading"],
+            ["📏 Range Trading", "⚡ Scalping"],
+            ["💱 Arbitrage", "🕰️ Position Trading"],
+            ["🌙 Overnight Trading"]
+        ]
+    }
+    
+    back_button_text = {
+        'tg': '↩️ Бозгашт',
+        'ru': '↩️ Назад',
+        'uz': '↩️ Orqaga',
+        'kk': '↩️ Артқа',
+        'en': '↩️ Back'
+    }
+    
+    # Формируем сообщение на нужном языке
+    title = titles.get(lang_code, titles['ru'])
+    description = descriptions.get(lang_code, descriptions['ru'])
+    buttons = strategies_buttons.get(lang_code, strategies_buttons['ru'])
+    back_button = back_button_text.get(lang_code, back_button_text['ru'])
+    
+    message = f"{title}\n\n{description}"
+    
+    # Создаем клавиатуру с кнопками стратегий
+    keyboard = []
+    
+    # Добавляем кнопки стратегий
+    for button_row in buttons:
+        row = []
+        for button_text in button_row:
+            # Генерируем callback_data на основе имени стратегии
+            # Убираем эмодзи из callback_data
+            strategy_name = "".join(button_text.split()[1:])
+            callback_data = f"strategy_{strategy_name}"
+            row.append(InlineKeyboardButton(button_text, callback_data=callback_data))
+        keyboard.append(row)
+    
+    # Добавляем кнопку возврата
+    keyboard.append([InlineKeyboardButton(back_button, callback_data="return_to_main")])
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def handle_trading_tools(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для раздела инструменты трейдинга"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Processing trading_tools request for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+    except Exception as e:
+        logger.error(f"Error in handle_trading_tools: {e}")
+        lang_code = 'ru'
+    
+    # Проверяем, запрошен ли конкретный инструмент
+    if query.data.startswith("tool_"):
+        # Извлекаем имя инструмента из callback_data
+        tool_name = query.data.replace("tool_", "")
+        await show_tool_details(update, context, tool_name, lang_code)
+        return
+    
+    # Тексты заголовков на разных языках
+    titles = {
+        'tg': '🧰 Абзорҳои трейдинг',
+        'ru': '🧰 Инструменты трейдинга',
+        'uz': '🧰 Treyding vositalari',
+        'kk': '🧰 Трейдинг құралдары',
+        'en': '🧰 Trading Tools'
+    }
+    
+    # Тексты описаний на разных языках
+    descriptions = {
+        'tg': 'Интихоб намоед абзорро барои гирифтани маълумоти муфассал ва тавсияҳо:',
+        'ru': 'Выберите инструмент для получения подробной информации и рекомендаций:',
+        'uz': 'Batafsil ma\'lumot va tavsiyalar olish uchun vositani tanlang:',
+        'kk': 'Толық ақпарат пен ұсыныстар алу үшін құралды таңдаңыз:',
+        'en': 'Select a tool for detailed information and recommendations:'
+    }
+    
+    # Кнопки категорий инструментов на разных языках
+    tools_buttons = {
+        'tg': [
+            ["📊 Платформаҳо", "📈 Индикаторҳо"],
+            ["📱 Замимаҳо", "📰 Манбаъҳои ахборот"],
+            ["💰 Идоракунии хавф", "📚 Китобхона"]
+        ],
+        'ru': [
+            ["📊 Платформы", "📈 Индикаторы"],
+            ["📱 Приложения", "📰 Источники информации"],
+            ["💰 Управление рисками", "📚 Библиотека"]
+        ],
+        'uz': [
+            ["📊 Platformalar", "📈 Indikatorlar"],
+            ["📱 Ilovalar", "📰 Axborot manbalari"],
+            ["💰 Risklarni boshqarish", "📚 Kutubxona"]
+        ],
+        'kk': [
+            ["📊 Платформалар", "📈 Индикаторлар"],
+            ["📱 Қосымшалар", "📰 Ақпарат көздері"],
+            ["💰 Тәуекелдерді басқару", "📚 Кітапхана"]
+        ],
+        'en': [
+            ["📊 Platforms", "📈 Indicators"],
+            ["📱 Applications", "📰 Information Sources"],
+            ["💰 Risk Management", "📚 Library"]
+        ]
+    }
+    
+    back_button_text = {
+        'tg': '↩️ Бозгашт',
+        'ru': '↩️ Назад',
+        'uz': '↩️ Orqaga',
+        'kk': '↩️ Артқа',
+        'en': '↩️ Back'
+    }
+    
+    # Формируем сообщение на нужном языке
+    title = titles.get(lang_code, titles['ru'])
+    description = descriptions.get(lang_code, descriptions['ru'])
+    buttons = tools_buttons.get(lang_code, tools_buttons['ru'])
+    back_button = back_button_text.get(lang_code, back_button_text['ru'])
+    
+    message = f"{title}\n\n{description}"
+    
+    # Создаем клавиатуру с кнопками инструментов
+    keyboard = []
+    
+    # Добавляем кнопки инструментов
+    for button_row in buttons:
+        row = []
+        for button_text in button_row:
+            # Генерируем callback_data на основе имени инструмента
+            # Убираем эмодзи из callback_data
+            tool_name = "".join(button_text.split()[1:])
+            callback_data = f"tool_{tool_name}"
+            row.append(InlineKeyboardButton(button_text, callback_data=callback_data))
+        keyboard.append(row)
+    
+    # Добавляем кнопку возврата
+    keyboard.append([InlineKeyboardButton(back_button, callback_data="return_to_main")])
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def handle_book_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик для подробной информации о книгах"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Processing book details request for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+        
+        # Извлекаем индекс книги из callback-data
+        book_index = int(query.data.split('_')[-1])
+        
+        # Получаем список книг на выбранном языке
+        book_list = books.get(lang_code, books['ru'])
+        
+        # Проверяем корректность индекса
+        if book_index < 0 or book_index >= len(book_list):
+            await query.edit_message_text(
+                "⚠️ Информация о книге не найдена.",
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("↩️ Назад", callback_data="trading_books")
+                ]])
+            )
+            return
+        
+        # Получаем данные о книге
+        book = book_list[book_index]
+        
+        # Тексты для деталей книги на разных языках
+        details_texts = {
+            'tg': {
+                'title': 'Маълумоти муфассал оид ба китоб:',
+                'description': 'Тавсиф:',
+                'pages': 'Миқдори саҳифаҳо:',
+                'year': 'Соли нашр:',
+                'back': '↩️ Бозгашт',
+                'download': '📥 Боргирӣ кардан'
+            },
+            'ru': {
+                'title': 'Подробная информация о книге:',
+                'description': 'Описание:',
+                'pages': 'Количество страниц:',
+                'year': 'Год издания:',
+                'back': '↩️ Назад',
+                'download': '📥 Скачать книгу'
+            },
+            'uz': {
+                'title': 'Kitob haqida batafsil ma\'lumot:',
+                'description': 'Tavsif:',
+                'pages': 'Sahifalar soni:',
+                'year': 'Nashr yili:',
+                'back': '↩️ Orqaga',
+                'download': '📥 Kitobni yuklab olish'
+            },
+            'kk': {
+                'title': 'Кітап туралы толық ақпарат:',
+                'description': 'Сипаттама:',
+                'pages': 'Беттер саны:',
+                'year': 'Жарияланған жылы:',
+                'back': '↩️ Артқа',
+                'download': '📥 Кітапты жүктеу'
+            },
+            'en': {
+                'title': 'Detailed book information:',
+                'description': 'Description:',
+                'pages': 'Number of pages:',
+                'year': 'Publication year:',
+                'back': '↩️ Back',
+                'download': '📥 Download book'
+            }
+        }
+        
+        # Выбираем тексты для текущего языка
+        texts = details_texts.get(lang_code, details_texts['ru'])
+        
+        # Формируем сообщение с подробной информацией
+        message = f"*{book['title']}*\n\n"
+        message += f"{texts['description']} {book['description']}\n\n"
+        message += f"{texts['pages']}: {book['pages']}\n"
+        message += f"{texts['year']}: {book['year']}\n"
+        
+        # Создаем клавиатуру с кнопками скачивания и возврата
+        keyboard = [
+            [InlineKeyboardButton(texts['download'], url=book['download_link'])],
+            [InlineKeyboardButton(texts['back'], callback_data="trading_books")]
+        ]
+        
+        # Отправляем сообщение
+        await query.edit_message_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode=ParseMode.MARKDOWN,
+            disable_web_page_preview=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in handle_book_details: {e}")
+        await query.edit_message_text(
+            "⚠️ Произошла ошибка при получении информации о книге.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("↩️ Назад", callback_data="trading_books")
+            ]])
+        )
+
+async def show_strategy_details(update: Update, context: ContextTypes.DEFAULT_TYPE, strategy_name: str, lang_code: str):
+    """Обработчик для отображения подробной информации о выбранной стратегии"""
+    query = update.callback_query
+    
+    # Словари с описаниями стратегий на разных языках
+    strategy_details = {
+        'Трендоваястратегия': {
+            'tg': {
+                'title': '📊 Стратегияи руйтамоили (Trend Trading)',
+                'description': 'Савдо дар самти руйтамоили бозор. Принсипи асосӣ — "тамоил дӯсти шумост".',
+                'how_it_works': 'Чӣ тавр кор мекунад:\n'
+                                '1. Муайян кардани тамоил бо ёрии индикаторҳои техникӣ (MA, MACD)\n'
+                                '2. Дохилшавӣ дар самти тамоил ҳангоми ислоҳи нархҳо\n'
+                                '3. Гузоштани дастури стоп-лосс дар рӯйтамоили муқобил\n'
+                                '4. Гирифтани фоида ҳангоми давом додани рӯйтамоил',
+                'example': 'Мисол: Ҳангоми тамоюли афзоишёбанда дар EUR/USD, трейдер мавқеи харидро дар вакти коррексияи якум ташкил мекунад.',
+                'pros_cons': '*Афзалиятҳо:*\n'
+                            '✅ Муносиб барои трейдерҳои навомӯз\n'
+                            '✅ Метавонад барои муддати тӯлонӣ фоида орад\n\n'
+                            '*Камбудиҳо:*\n'
+                            '❌ Мумкин аст дер гузаштан аз тамоюл\n'
+                            '❌ Зарур будани таҳаммул дар давраҳои бозори беруйтамо'
+            },
+            'ru': {
+                'title': '📊 Трендовая стратегия (Trend Trading)',
+                'description': 'Торговля в направлении рыночного тренда. Основной принцип — "тренд — ваш друг".',
+                'how_it_works': 'Как это работает:\n'
+                                '1. Определение тренда с помощью технических индикаторов (MA, MACD)\n'
+                                '2. Вход в направлении тренда при коррекциях цены\n'
+                                '3. Установка стоп-лосса на противоположной стороне тренда\n'
+                                '4. Фиксация прибыли при продолжении тренда',
+                'example': 'Пример: При восходящем тренде на EUR/USD трейдер открывает длинную позицию после первой коррекции.',
+                'image_description': 'На этом графике EUR/USD виден восходящий тренд с несколькими точками входа после коррекций. Синими стрелками отмечены оптимальные входы в рынок, красными линиями — уровни стоп-лосс, зелеными — тейк-профит.',
+                'pros_cons': '*Преимущества:*\n'
+                            '✅ Подходит для новичков\n'
+                            '✅ Может приносить прибыль длительное время\n\n'
+                            '*Недостатки:*\n'
+                            '❌ Возможно позднее определение тренда\n'
+                            '❌ Требует терпения в периоды безтрендового рынка'
+            },
+            'uz': {
+                'title': '📊 Trend strategiyasi (Trend Trading)',
+                'description': 'Bozor yo\'nalishi bo\'yicha savdo qilish. Asosiy tamoyil — "trend — sizning do\'stingiz".',
+                'how_it_works': 'Bu qanday ishlaydi:\n'
+                                '1. Texnik indikatorlar (MA, MACD) yordamida trendni aniqlash\n'
+                                '2. Narx tuzatilganda trend yo\'nalishida kirish\n'
+                                '3. Trendning qarama-qarshi tomonida stop-loss o\'rnatish\n'
+                                '4. Trend davom etsa, foydani belgilash',
+                'example': 'Misol: EUR/USD\'da ko\'tariluvchi trend bo\'lganda, treydir birinchi tuzatishdan keyin uzun pozitsiya ochadi.',
+                'pros_cons': '*Afzalliklari:*\n'
+                            '✅ Yangi boshlovchilar uchun mos\n'
+                            '✅ Uzoq vaqt davomida foyda keltirishi mumkin\n\n'
+                            '*Kamchiliklari:*\n'
+                            '❌ Trendni kech aniqlash mumkin\n'
+                            '❌ Trendsiz bozor davrlarida sabr talab qiladi'
+            },
+            'kk': {
+                'title': '📊 Тренд стратегиясы (Trend Trading)',
+                'description': 'Нарық тренді бағытында сауда жасау. Негізгі қағида — "тренд — сіздің досыңыз".',
+                'how_it_works': 'Бұл қалай жұмыс істейді:\n'
+                                '1. Техникалық индикаторлардың (MA, MACD) көмегімен трендті анықтау\n'
+                                '2. Баға түзетілгенде тренд бағытына кіру\n'
+                                '3. Трендтің қарама-қарсы жағында стоп-лосс орнату\n'
+                                '4. Тренд жалғасса, пайданы бекіту',
+                'example': 'Мысал: EUR/USD жұбында көтерілу тренді болған кезде, трейдер бірінші түзетуден кейін ұзақ позиция ашады.',
+                'pros_cons': '*Артықшылықтары:*\n'
+                            '✅ Жаңадан бастаушыларға қолайлы\n'
+                            '✅ Ұзақ уақыт бойы пайда әкелуі мүмкін\n\n'
+                            '*Кемшіліктері:*\n'
+                            '❌ Трендті кеш анықтау мүмкін\n'
+                            '❌ Трендсіз нарық кезеңінде төзімділікті қажет етеді'
+            },
+            'en': {
+                'title': '📊 Trend Trading Strategy',
+                'description': 'Trading in the direction of the market trend. The main principle is "the trend is your friend".',
+                'how_it_works': 'How it works:\n'
+                                '1. Identifying the trend using technical indicators (MA, MACD)\n'
+                                '2. Entering in the trend direction during price corrections\n'
+                                '3. Setting a stop-loss on the opposite side of the trend\n'
+                                '4. Taking profit as the trend continues',
+                'example': 'Example: In an uptrend on EUR/USD, a trader opens a long position after the first correction.',
+                'pros_cons': '*Advantages:*\n'
+                            '✅ Suitable for beginners\n'
+                            '✅ Can generate profits for a long time\n\n'
+                            '*Disadvantages:*\n'
+                            '❌ Possible late identification of the trend\n'
+                            '❌ Requires patience during trendless market periods'
+            }
+        },
+        'Разворотнаястратегия': {
+            'tg': {
+                'title': '📉 Инверсия (Reversal Trading)',
+                'description': 'Ҷустуҷӯи нуқтаҳои гардиш ва тағйири тамоюл дар бозор. Муомилот дар самти муқобили тамоюли ҷорӣ.',
+                'how_it_works': 'Чӣ тавр кор мекунад:\n'
+                                '1. Муайян кардани нуқтаҳои эҳтимолии гардиш (ҳадди ақал/максимум)\n'
+                                '2. Тасдиқи инверсия тавассути индикаторҳои техникӣ\n'
+                                '3. Гузоштани ордер дар самти муқобили тамоюли ҷорӣ\n'
+                                '4. Нигоҳ доштани позитсия то ташаккули тамоюли нав',
+                'example': 'Мисол: Ҳангоми расидан ба сатҳи муқовимати қавӣ дар тамоюли афзоиш, трейдер мавқеи фурӯшро ташкил мекунад.',
+                'pros_cons': '*Афзалиятҳо:*\n'
+                            '✅ Метавонад фоидаи зиёд диҳад\n'
+                            '✅ Имконияти дохилшавӣ дар нуқтаҳои оптималӣ\n\n'
+                            '*Камбудиҳо:*\n'
+                            '❌ Хавфи баланд дар ҳолати нодуруст будани таҳлил\n'
+                            '❌ Талаб мекунад таҷрибаи зиёд'
+            },
+            'ru': {
+                'title': '📉 Разворотная стратегия (Reversal Trading)',
+                'description': 'Поиск точек разворота и смены тренда на рынке. Торговля против текущего тренда.',
+                'how_it_works': 'Как это работает:\n'
+                                '1. Определение потенциальных точек разворота (минимумы/максимумы)\n'
+                                '2. Подтверждение разворота через технические индикаторы\n'
+                                '3. Размещение ордера против текущего тренда\n'
+                                '4. Удержание позиции до формирования нового тренда',
+                'example': 'Пример: При достижении сильного уровня сопротивления в восходящем тренде, трейдер открывает короткую позицию.',
+                'image_description': 'На графике USD/JPY видны ключевые точки разворота тренда: двойная вершина с последующим нисходящим движением. Красными стрелками отмечены точки входа в короткую позицию после подтверждения разворота, синими линиями — уровни стоп-лосс.',
+                'pros_cons': '*Преимущества:*\n'
+                            '✅ Может приносить высокую прибыль\n'
+                            '✅ Возможность входа в оптимальных точках\n\n'
+                            '*Недостатки:*\n'
+                            '❌ Высокий риск при неверном анализе\n'
+                            '❌ Требует значительного опыта'
+            },
+            'uz': {
+                'title': '📉 Aylanish strategiyasi (Reversal Trading)',
+                'description': 'Bozorda burilish nuqtalarini va trend o\'zgarishlarini qidirish. Joriy trendga qarshi savdo qilish.',
+                'how_it_works': 'Bu qanday ishlaydi:\n'
+                                '1. Potensial burilish nuqtalarini (minimumlar/maksimumlar) aniqlash\n'
+                                '2. Texnik indikatorlar orqali burilishni tasdiqlash\n'
+                                '3. Joriy trendga qarshi buyurtma joylashtirish\n'
+                                '4. Yangi trend shakllanguncha pozitsiyani ushlab turish',
+                'example': 'Misol: Ko\'tariluvchi trendda kuchli qarshilik darajasiga erishilganda, treydir qisqa pozitsiya ochadi.',
+                'pros_cons': '*Afzalliklari:*\n'
+                            '✅ Yuqori foyda keltirishi mumkin\n'
+                            '✅ Optimal nuqtalarda kirish imkoniyati\n\n'
+                            '*Kamchiliklari:*\n'
+                            '❌ Noto\'g\'ri tahlil qilganda yuqori xavf\n'
+                            '❌ Sezilarli tajriba talab qiladi'
+            },
+            'kk': {
+                'title': '📉 Бұрылыс стратегиясы (Reversal Trading)',
+                'description': 'Нарықта бұрылу нүктелерін және тренд өзгерістерін іздеу. Ағымдағы трендке қарсы сауда жасау.',
+                'how_it_works': 'Бұл қалай жұмыс істейді:\n'
+                                '1. Әлеуетті бұрылыс нүктелерін (минимумдар/максимумдар) анықтау\n'
+                                '2. Техникалық индикаторлар арқылы бұрылысты растау\n'
+                                '3. Ағымдағы трендке қарсы ордер орналастыру\n'
+                                '4. Жаңа тренд қалыптасқанша позицияны ұстап тұру',
+                'example': 'Мысал: Көтерілу трендінде күшті қарсылық деңгейіне жеткенде, трейдер қысқа позиция ашады.',
+                'pros_cons': '*Артықшылықтары:*\n'
+                            '✅ Жоғары пайда әкелуі мүмкін\n'
+                            '✅ Оңтайлы нүктелерде кіру мүмкіндігі\n\n'
+                            '*Кемшіліктері:*\n'
+                            '❌ Қате талдау жасағанда жоғары тәуекел\n'
+                            '❌ Елеулі тәжірибені қажет етеді'
+            },
+            'en': {
+                'title': '📉 Reversal Trading Strategy',
+                'description': 'Looking for turning points and trend changes in the market. Trading against the current trend.',
+                'how_it_works': 'How it works:\n'
+                                '1. Identifying potential reversal points (lows/highs)\n'
+                                '2. Confirming the reversal through technical indicators\n'
+                                '3. Placing an order against the current trend\n'
+                                '4. Holding the position until a new trend forms',
+                'example': 'Example: When reaching a strong resistance level in an uptrend, a trader opens a short position.',
+                'pros_cons': '*Advantages:*\n'
+                            '✅ Can bring high profits\n'
+                            '✅ Opportunity to enter at optimal points\n\n'
+                            '*Disadvantages:*\n'
+                            '❌ High risk with incorrect analysis\n'
+                            '❌ Requires significant experience'
+            }
+        },
+        # Добавьте другие стратегии аналогично
+    }
+    
+    # Тексты на разных языках
+    button_texts = {
+        'tg': '↩️ Бозгашт ба рӯйхати стратегияҳо',
+        'ru': '↩️ Вернуться к списку стратегий',
+        'uz': '↩️ Strategiyalar ro\'yxatiga qaytish',
+        'kk': '↩️ Стратегиялар тізіміне оралу',
+        'en': '↩️ Return to strategies list'
+    }
+    
+    # Получаем информацию о выбранной стратегии
+    strategy_info = None
+    for key, info in strategy_details.items():
+        if key.lower() == strategy_name.lower():
+            strategy_info = info
+            break
+    
+    # Если стратегия не найдена, показываем сообщение об ошибке
+    if not strategy_info:
+        await query.edit_message_text(
+            "⚠️ Подробная информация о этой стратегии временно недоступна.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(button_texts.get(lang_code, button_texts['ru']), callback_data="trading_strategies")
+            ]]),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+    
+    # Получаем данные стратегии для выбранного языка
+    strategy_data = strategy_info.get(lang_code, strategy_info['ru'])
+    
+    # Формируем сообщение с подробной информацией
+    message = f"*{strategy_data['title']}*\n\n"
+    message += f"{strategy_data['description']}\n\n"
+    message += f"{strategy_data['how_it_works']}\n\n"
+    message += f"*Пример:*\n{strategy_data['example']}\n\n"
+    
+    # Добавляем описание изображения, если оно есть
+    if 'image_description' in strategy_data:
+        message += f"*Визуальный пример:*\n{strategy_data['image_description']}\n\n"
+    
+    message += strategy_data['pros_cons']
+    
+    # Создаем клавиатуру с кнопкой возврата
+    keyboard = [[InlineKeyboardButton(button_texts.get(lang_code, button_texts['ru']), callback_data="trading_strategies")]]
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
 async def handle_otc_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик для OTC Pocket Option пар"""
     query = update.callback_query
@@ -4404,6 +6766,350 @@ async def handle_otc_signals(update: Update, context: ContextTypes.DEFAULT_TYPE)
         logger.error(f"Error in OTC signals handler: {e}")
         await query.answer(f"Произошла ошибка: {str(e)}")
 
+async def show_tool_details(update: Update, context: ContextTypes.DEFAULT_TYPE, tool_name: str, lang_code: str):
+    """Обработчик для отображения подробной информации о выбранном инструменте"""
+    query = update.callback_query
+    
+    # Словари с описаниями инструментов на разных языках
+    tools_details = {
+        'Платформы': {
+            'tg': {
+                'title': '📊 Платформаҳои савдо',
+                'description': 'Платформаҳои савдо - ин нармафзор барои амалиёти савдо дар бозорҳои молиявӣ.',
+                'popular_tools': '*Платформаҳои маъмули савдо:*\n\n'
+                                '1. *MetaTrader 4/5*\n'
+                                '- Бартариҳо: Платформаи универсалӣ барои савдои асъор ва CFD\n'
+                                '- Хусусиятҳо: Таҳлили техникӣ, савдои автоматӣ бо ёрии роботҳо\n'
+                                '- Ҳаққи обуна: ройгон\n\n'
+                                '2. *TradingView*\n'
+                                '- Бартариҳо: Платформаи пешрафтаи графикӣ бо имкониятҳои таҳлилӣ\n'
+                                '- Хусусиятҳо: Таҳлили техникӣ, муошират бо ҷомеа, скриптнависӣ\n'
+                                '- Ҳаққи обуна: Аз $12.95 дар як моҳ\n\n'
+                                '3. *cTrader*\n'
+                                '- Бартариҳо: Дастрасии мустақим ба бозор (DMA)\n'
+                                '- Хусусиятҳо: Таҳлили техникӣ, level 2 дефтари фармоишҳо\n'
+                                '- Ҳаққи обуна: ройгон',
+                'recommendations': '*Тавсияҳо барои интихоби платформа:*\n\n'
+                                  '✅ Барои навомӯзон: MetaTrader 4, TradingView\n'
+                                  '✅ Барои таҳлили техникӣ: TradingView\n'
+                                  '✅ Барои савдои автоматӣ: MetaTrader 5\n'
+                                  '✅ Барои скальпинг: cTrader, NinjaTrader\n'
+                                  '❗ Ҳатман платформаро дар ҳисоби намоишӣ санҷед',
+                'examples': '*Мисол:* \n'
+                           'Дар TradingView, шумо метавонед аз индикаторҳои гуногун истифода баред, графикҳои муқоисавӣ созед ва бо ҷомеаи трейдерон муошират кунед.'
+            },
+            'ru': {
+                'title': '📊 Торговые платформы',
+                'description': 'Торговые платформы - это программное обеспечение для совершения торговых операций на финансовых рынках.',
+                'popular_tools': '*Популярные торговые платформы:*\n\n'
+                                '1. *MetaTrader 4/5*\n'
+                                '- Преимущества: Универсальная платформа для торговли форекс и CFD\n'
+                                '- Функции: Технический анализ, автоматическая торговля с помощью роботов\n'
+                                '- Стоимость: бесплатно\n\n'
+                                '2. *TradingView*\n'
+                                '- Преимущества: Продвинутая графическая платформа с аналитическими возможностями\n'
+                                '- Функции: Технический анализ, общение с сообществом, написание скриптов\n'
+                                '- Стоимость: От $12.95 в месяц\n\n'
+                                '3. *cTrader*\n'
+                                '- Преимущества: Прямой доступ к рынку (DMA)\n'
+                                '- Функции: Технический анализ, level 2 стакан цен\n'
+                                '- Стоимость: бесплатно',
+                'recommendations': '*Рекомендации по выбору платформы:*\n\n'
+                                  '✅ Для новичков: MetaTrader 4, TradingView\n'
+                                  '✅ Для технического анализа: TradingView\n'
+                                  '✅ Для автоматической торговли: MetaTrader 5\n'
+                                  '✅ Для скальпинга: cTrader, NinjaTrader\n'
+                                  '❗ Обязательно тестируйте платформу на демо-счете',
+                'examples': '*Пример:* \n'
+                           'В TradingView вы можете использовать различные индикаторы, создавать сравнительные графики и взаимодействовать с сообществом трейдеров.'
+            },
+            'uz': {
+                'title': '📊 Savdo platformalari',
+                'description': 'Savdo platformalari - moliya bozorlarida savdo operatsiyalarini amalga oshirish uchun dasturiy ta\'minot.',
+                'popular_tools': '*Mashhur savdo platformalari:*\n\n'
+                                '1. *MetaTrader 4/5*\n'
+                                '- Afzalliklari: Forex va CFD savdosi uchun universal platforma\n'
+                                '- Imkoniyatlari: Texnik tahlil, robotlar yordamida avtomatik savdo\n'
+                                '- Narxi: bepul\n\n'
+                                '2. *TradingView*\n'
+                                '- Afzalliklari: Analitik imkoniyatlarga ega rivojlangan grafik platforma\n'
+                                '- Imkoniyatlari: Texnik tahlil, jamiyat bilan muloqot, skript yozish\n'
+                                '- Narxi: Oyiga $12.95 dan\n\n'
+                                '3. *cTrader*\n'
+                                '- Afzalliklari: Bozorga to\'g\'ridan-to\'g\'ri kirish (DMA)\n'
+                                '- Imkoniyatlari: Texnik tahlil, level 2 narx stakani\n'
+                                '- Narxi: bepul',
+                'recommendations': '*Platforma tanlash bo\'yicha tavsiyalar:*\n\n'
+                                  '✅ Yangi boshlanuvchilar uchun: MetaTrader 4, TradingView\n'
+                                  '✅ Texnik tahlil uchun: TradingView\n'
+                                  '✅ Avtomatik savdo uchun: MetaTrader 5\n'
+                                  '✅ Skalping uchun: cTrader, NinjaTrader\n'
+                                  '❗ Albatta platformani demo hisobida sinab ko\'ring',
+                'examples': '*Misol:* \n'
+                           'TradingView\'da siz turli indikatorlardan foydalanishingiz, qiyosiy grafiklarni yaratishingiz va treyderlar jamoasi bilan o\'zaro aloqada bo\'lishingiz mumkin.'
+            },
+            'kk': {
+                'title': '📊 Сауда платформалары',
+                'description': 'Сауда платформалары - қаржы нарықтарында сауда операцияларын жүзеге асыруға арналған бағдарламалық жасақтама.',
+                'popular_tools': '*Танымал сауда платформалары:*\n\n'
+                                '1. *MetaTrader 4/5*\n'
+                                '- Артықшылықтары: Форекс және CFD саудасына арналған әмбебап платформа\n'
+                                '- Функциялары: Техникалық талдау, роботтар арқылы автоматты сауда\n'
+                                '- Құны: тегін\n\n'
+                                '2. *TradingView*\n'
+                                '- Артықшылықтары: Аналитикалық мүмкіндіктері бар озық графикалық платформа\n'
+                                '- Функциялары: Техникалық талдау, қауымдастықпен қарым-қатынас, скрипт жазу\n'
+                                '- Құны: Айына $12.95 бастап\n\n'
+                                '3. *cTrader*\n'
+                                '- Артықшылықтары: Нарыққа тікелей қол жеткізу (DMA)\n'
+                                '- Функциялары: Техникалық талдау, level 2 баға стаканы\n'
+                                '- Құны: тегін',
+                'recommendations': '*Платформа таңдау бойынша ұсыныстар:*\n\n'
+                                  '✅ Жаңадан бастаушыларға: MetaTrader 4, TradingView\n'
+                                  '✅ Техникалық талдау үшін: TradingView\n'
+                                  '✅ Автоматты сауда үшін: MetaTrader 5\n'
+                                  '✅ Скальпинг үшін: cTrader, NinjaTrader\n'
+                                  '❗ Міндетті түрде платформаны демо шотта тексеріңіз',
+                'examples': '*Мысал:* \n'
+                           'TradingView-де сіз әртүрлі индикаторларды қолдана аласыз, салыстырмалы графиктер жасай аласыз және трейдерлер қауымдастығымен өзара әрекеттесе аласыз.'
+            },
+            'en': {
+                'title': '📊 Trading Platforms',
+                'description': 'Trading platforms are software applications that enable trading operations in financial markets.',
+                'popular_tools': '*Popular Trading Platforms:*\n\n'
+                                '1. *MetaTrader 4/5*\n'
+                                '- Advantages: Universal platform for forex and CFD trading\n'
+                                '- Features: Technical analysis, automated trading with robots\n'
+                                '- Cost: free\n\n'
+                                '2. *TradingView*\n'
+                                '- Advantages: Advanced charting platform with analytical capabilities\n'
+                                '- Features: Technical analysis, community interaction, script writing\n'
+                                '- Cost: From $12.95 per month\n\n'
+                                '3. *cTrader*\n'
+                                '- Advantages: Direct Market Access (DMA)\n'
+                                '- Features: Technical analysis, level 2 order book\n'
+                                '- Cost: free',
+                'recommendations': '*Platform Selection Recommendations:*\n\n'
+                                  '✅ For beginners: MetaTrader 4, TradingView\n'
+                                  '✅ For technical analysis: TradingView\n'
+                                  '✅ For automated trading: MetaTrader 5\n'
+                                  '✅ For scalping: cTrader, NinjaTrader\n'
+                                  '❗ Always test the platform on a demo account',
+                'examples': '*Example:* \n'
+                           'In TradingView, you can use various indicators, create comparative charts, and interact with the trading community.'
+            }
+        },
+        'Индикаторы': {
+            'tg': {
+                'title': '📈 Индикаторҳои техникӣ',
+                'description': 'Индикаторҳои техникӣ - воситаҳои риёзӣ барои таҳлили нархҳо ва ҳаҷми муомилот мебошанд.',
+                'popular_tools': '*Индикаторҳои маъмултарин:*\n\n'
+                                '1. *Миёнаҳои ҳаракаткунанда (MA)*\n'
+                                '- Истифода: Муайян кардани тамоюл ва сатҳи дастгирӣ/муқовимат\n'
+                                '- Намудҳо: Оддӣ (SMA), Экспоненсиалӣ (EMA), Самти ҳаракати муқаррарӣ (SMMA)\n\n'
+                                '2. *Индекси нисбии қувва (RSI)*\n'
+                                '- Истифода: Муайян кардани ҳолатҳои боризи барзиёд харидан/фурӯхтан\n'
+                                '- Доираи тағйирот: аз 0 то 100, бо сатҳҳои муҳими 30 ва 70\n\n'
+                                '3. *MACD (Ҳамгироӣ ва суръатбахшии миёнаи ҳаракаткунанда)*\n'
+                                '- Истифода: Муайян кардани тамоюл ва қувваи он\n'
+                                '- Ташкил: Фарқияти байни EMA-и кӯтоҳмуддат ва дарозмуддат',
+                'recommendations': '*Тавсияҳо оид ба истифодаи индикаторҳо:*\n\n'
+                                  '✅ Барои навомӯзон: Миёнаҳои ҳаракаткунанда (МА), RSI\n'
+                                  '✅ Барои тамоюл: Миёнаҳои ҳаракаткунанда, MACD, ADX\n'
+                                  '✅ Барои осиллятсияҳо: RSI, Стохастик, CCI\n'
+                                  '❗ Ягон индикатор 100% самарабахш нест, танҳо дар якҷоягӣ истифода баред',
+                'examples': '*Мисол:* \n'
+                           'Барои стратегияи тамоюлӣ шумо метавонед аз маҷмӯи EMA-20 ва EMA-50 истифода баред ва ҳангоми якдигарро бурида гузаштани онҳо сигнал мегиред.'
+            },
+            'ru': {
+                'title': '📈 Технические индикаторы',
+                'description': 'Технические индикаторы - это математические инструменты для анализа цен и объема торгов.',
+                'popular_tools': '*Наиболее популярные индикаторы:*\n\n'
+                                '1. *Скользящие средние (MA)*\n'
+                                '- Применение: Определение тренда и уровней поддержки/сопротивления\n'
+                                '- Типы: Простая (SMA), Экспоненциальная (EMA), Сглаженная (SMMA)\n\n'
+                                '2. *Индекс относительной силы (RSI)*\n'
+                                '- Применение: Определение состояний перекупленности/перепроданности\n'
+                                '- Диапазон: от 0 до 100, с ключевыми уровнями 30 и 70\n\n'
+                                '3. *MACD (Схождение/расхождение скользящих средних)*\n'
+                                '- Применение: Определение тренда и его силы\n'
+                                '- Состав: Разница между краткосрочной и долгосрочной EMA',
+                'recommendations': '*Рекомендации по использованию индикаторов:*\n\n'
+                                  '✅ Для начинающих: Скользящие средние (MA), RSI\n'
+                                  '✅ Для определения тренда: MA, MACD, ADX\n'
+                                  '✅ Для осцилляторов: RSI, Стохастик, CCI\n'
+                                  '❗ Ни один индикатор не дает 100% эффективности, используйте их в комбинации',
+                'examples': '*Пример:* \n'
+                           'Для трендовой стратегии вы можете использовать комбинацию EMA-20 и EMA-50, получая сигнал при их пересечении.'
+            },
+            'uz': {
+                'title': '📈 Texnik indikatorlar',
+                'description': 'Texnik indikatorlar - narxlar va savdo hajmini tahlil qilish uchun matematik vositalar.',
+                'popular_tools': '*Eng mashhur indikatorlar:*\n\n'
+                                '1. *Harakatlanuvchi o\'rtachalar (MA)*\n'
+                                '- Foydalanish: Trend va qo\'llab-quvvatlash/qarshilik darajalarini aniqlash\n'
+                                '- Turlari: Oddiy (SMA), Eksponensial (EMA), Silliqlangan (SMMA)\n\n'
+                                '2. *Nisbiy kuch indeksi (RSI)*\n'
+                                '- Foydalanish: Haddan tashqari sotib olish/sotish holatlarini aniqlash\n'
+                                '- Diapazon: 0 dan 100 gacha, asosiy darajalar 30 va 70\n\n'
+                                '3. *MACD (Harakatlanuvchi o\'rtachalarning yaqinlashishi/farqlanishi)*\n'
+                                '- Foydalanish: Trend va uning kuchini aniqlash\n'
+                                '- Tarkib: Qisqa muddatli va uzoq muddatli EMA o\'rtasidagi farq',
+                'recommendations': '*Indikatorlardan foydalanish bo\'yicha tavsiyalar:*\n\n'
+                                  '✅ Yangi boshlanuvchilar uchun: Harakatlanuvchi o\'rtachalar (MA), RSI\n'
+                                  '✅ Trendni aniqlash uchun: MA, MACD, ADX\n'
+                                  '✅ Ossillyatorlar uchun: RSI, Stoxastik, CCI\n'
+                                  '❗ Hech bir indikator 100% samaradorlik bermaydi, ularni birgalikda ishlating',
+                'examples': '*Misol:* \n'
+                           'Trend strategiyasi uchun siz EMA-20 va EMA-50 kombinatsiyasidan foydalanishingiz mumkin, ular kesishganda signal olasiz.'
+            },
+            'kk': {
+                'title': '📈 Техникалық индикаторлар',
+                'description': 'Техникалық индикаторлар - бағалар мен сауда көлемін талдауға арналған математикалық құралдар.',
+                'popular_tools': '*Ең танымал индикаторлар:*\n\n'
+                                '1. *Жылжымалы орташалар (MA)*\n'
+                                '- Қолдану: Трендті және қолдау/қарсылық деңгейлерін анықтау\n'
+                                '- Түрлері: Қарапайым (SMA), Экспоненциалды (EMA), Тегістелген (SMMA)\n\n'
+                                '2. *Салыстырмалы күш индексі (RSI)*\n'
+                                '- Қолдану: Шамадан тыс сатып алу/сату жағдайларын анықтау\n'
+                                '- Диапазон: 0-ден 100-ге дейін, маңызды деңгейлер 30 және 70\n\n'
+                                '3. *MACD (Жылжымалы орташалардың жақындасуы/айырмашылығы)*\n'
+                                '- Қолдану: Трендті және оның күшін анықтау\n'
+                                '- Құрамы: Қысқа мерзімді және ұзақ мерзімді EMA арасындағы айырмашылық',
+                'recommendations': '*Индикаторларды пайдалану бойынша ұсыныстар:*\n\n'
+                                  '✅ Жаңадан бастаушыларға: Жылжымалы орташалар (MA), RSI\n'
+                                  '✅ Трендті анықтау үшін: MA, MACD, ADX\n'
+                                  '✅ Осцилляторлар үшін: RSI, Стохастик, CCI\n'
+                                  '❗ Ешбір индикатор 100% тиімділік бермейді, оларды бірге қолданыңыз',
+                'examples': '*Мысал:* \n'
+                           'Тренд стратегиясы үшін сіз EMA-20 және EMA-50 комбинациясын қолдана аласыз, олар қиылысқанда сигнал аласыз.'
+            },
+            'en': {
+                'title': '📈 Technical Indicators',
+                'description': 'Technical indicators are mathematical tools for analyzing price and volume data.',
+                'popular_tools': '*Most Popular Indicators:*\n\n'
+                                '1. *Moving Averages (MA)*\n'
+                                '- Use: Determining trend and support/resistance levels\n'
+                                '- Types: Simple (SMA), Exponential (EMA), Smoothed (SMMA)\n\n'
+                                '2. *Relative Strength Index (RSI)*\n'
+                                '- Use: Identifying overbought/oversold conditions\n'
+                                '- Range: 0 to 100, with key levels at 30 and 70\n\n'
+                                '3. *MACD (Moving Average Convergence Divergence)*\n'
+                                '- Use: Determining trend and its strength\n'
+                                '- Composition: Difference between short-term and long-term EMA',
+                'recommendations': '*Recommendations for Using Indicators:*\n\n'
+                                  '✅ For beginners: Moving Averages (MA), RSI\n'
+                                  '✅ For trend determination: MA, MACD, ADX\n'
+                                  '✅ For oscillators: RSI, Stochastic, CCI\n'
+                                  '❗ No single indicator is 100% effective, use them in combination',
+                'examples': '*Example:* \n'
+                           'For a trend strategy, you can use a combination of EMA-20 and EMA-50, getting a signal when they cross each other.'
+            }
+        },
+        'Управлениерисками': {
+            'tg': {
+                'title': '💰 Идоракунии хавф',
+                'description': 'Идоракунии хавф - усулҳои паст кардани зарари эҳтимолӣ ва нигоҳ доштани сармоя.',
+                'popular_tools': '*Воситаҳои асосии идоракунии хавф:*\n\n'
+                                '1. *Стоп-лосс*\n'
+                                '- Таъинот: Маҳдуд кардани зарар дар ҳолати ҳаракати нархҳо бар зидди мавқеи шумо\n'
+                                '- Навъҳо: Статикӣ, тағйирёбанда, фоизнок\n\n'
+                                '2. *Тейк-профит*\n'
+                                '- Таъинот: Гирифтани фоида дар сатҳи мақсаднок\n'
+                                '- Намудҳо: Статикӣ, бисёрсатҳӣ, фоизнок\n\n'
+                                '3. *Ҳаҷми мавқеъ*\n'
+                                '- Таъинот: Муайян кардани миқдори дурусти воситаи молиявӣ барои савдо\n'
+                                '- Ҳисобкунӣ: Дар асоси андозаи ҳисоб, хавфи муомила ва баромади стоп-лосс',
+                'recommendations': '*Тавсияҳо оид ба идоракунии хавф:*\n\n'
+                                  '✅ Дар як савдо на зиёда аз 1-2% аз маблағи умумиро таваккал кунед\n'
+                                  '✅ Ҳамеша стоп-лосс гузоред\n'
+                                  '✅ Таносуби хавф/фоида камаш 1:2 бошад\n'
+                                  '✅ Ҳангоми бозори пурталотум андозаи мавқеъро паст кунед\n'
+                                  '❗ Идоракунии хавф аз стратегияи савдо муҳимтар аст',
+                'examples': '*Мисол:* \n'
+                           'Агар шумо ҳисоби $10,000 дошта, 1% хавфро қабул кунед, он гоҳ дар як савдо на бештар аз $100 хавф кунед. Агар стоп-лосс шумо 10 пипс бошад, шумо метавонед 1 лот савдо кунед.'
+            },
+            'ru': {
+                'title': '💰 Управление рисками',
+                'description': 'Управление рисками - методы снижения потенциальных убытков и сохранения капитала.',
+                'popular_tools': '*Основные инструменты управления рисками:*\n\n'
+                                '1. *Стоп-лосс*\n'
+                                '- Назначение: Ограничение убытка при движении цены против вашей позиции\n'
+                                '- Типы: Статический, трейлинг, процентный\n\n'
+                                '2. *Тейк-профит*\n'
+                                '- Назначение: Фиксация прибыли на целевом уровне\n'
+                                '- Типы: Статический, многоуровневый, процентный\n\n'
+                                '3. *Размер позиции*\n'
+                                '- Назначение: Определение правильного количества финансового инструмента для торговли\n'
+                                '- Расчет: На основе размера счета, риска на сделку и расстояния до стоп-лосса',
+                'recommendations': '*Рекомендации по управлению рисками:*\n\n'
+                                  '✅ Рискуйте не более 1-2% от общего капитала на одну сделку\n'
+                                  '✅ Всегда устанавливайте стоп-лосс\n'
+                                  '✅ Соотношение риск/прибыль не менее 1:2\n'
+                                  '✅ В периоды высокой волатильности уменьшайте размер позиции\n'
+                                  '❗ Управление рисками важнее торговой стратегии',
+                'examples': '*Пример:* \n'
+                           'Если у вас счет $10,000 и вы принимаете риск 1%, то на одну сделку рискуйте не более $100. Если ваш стоп-лосс составляет 10 пунктов, вы можете торговать 1 лотом.'
+            },
+            # Добавьте другие языки
+        }
+        # Добавьте другие инструменты по аналогии
+    }
+    
+    # Тексты на разных языках
+    button_texts = {
+        'tg': '↩️ Бозгашт ба рӯйхати абзорҳо',
+        'ru': '↩️ Вернуться к списку инструментов',
+        'uz': '↩️ Vositalar ro\'yxatiga qaytish',
+        'kk': '↩️ Құралдар тізіміне оралу',
+        'en': '↩️ Return to tools list'
+    }
+    
+    # Получаем информацию о выбранном инструменте
+    tool_info = None
+    for key, info in tools_details.items():
+        if key.lower() == tool_name.lower():
+            tool_info = info
+            break
+    
+    # Если инструмент не найден, показываем сообщение об ошибке
+    if not tool_info:
+        await query.edit_message_text(
+            "⚠️ Подробная информация об этом инструменте временно недоступна.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(button_texts.get(lang_code, button_texts['ru']), callback_data="trading_tools")
+            ]]),
+            parse_mode=ParseMode.MARKDOWN
+        )
+        return
+    
+    # Получаем данные инструмента для выбранного языка
+    tool_data = tool_info.get(lang_code, tool_info['ru'])
+    
+    # Формируем сообщение с подробной информацией
+    message = f"*{tool_data['title']}*\n\n"
+    message += f"{tool_data['description']}\n\n"
+    message += f"{tool_data['popular_tools']}\n\n"
+    
+    # Добавляем рекомендации, если они есть
+    if 'recommendations' in tool_data:
+        message += f"{tool_data['recommendations']}\n\n"
+    
+    # Добавляем примеры, если они есть
+    if 'examples' in tool_data:
+        message += f"{tool_data['examples']}"
+    
+    # Создаем клавиатуру с кнопкой возврата
+    keyboard = [[InlineKeyboardButton(button_texts.get(lang_code, button_texts['ru']), callback_data="trading_tools")]]
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+
 async def handle_otc_pair_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик для анализа конкретной OTC пары"""
     query = update.callback_query
@@ -4423,10 +7129,87 @@ async def handle_otc_pair_analysis(update: Update, context: ContextTypes.DEFAULT
         pair_data = query.data.replace("otc_", "").replace("_", "/")
         
         # Отправляем сообщение о начале анализа
+        analyzing_text = {
+            'tg': f"⏳ Таҳлили {pair_data}...\n\nЛутфан, мунтазир шавед...",
+            'ru': f"⏳ Анализируем {pair_data}...\n\nПожалуйста, подождите...",
+            'uz': f"⏳ {pair_data} tahlil qilinmoqda...\n\nIltimos, kuting...",
+            'kk': f"⏳ {pair_data} талдау жүргізілуде...\n\nКүте тұрыңыз...",
+            'en': f"⏳ Analyzing {pair_data}...\n\nPlease wait..."
+        }
+        
         await query.edit_message_text(
-            f"⏳ Анализируем {pair_data}...\n\n"
-            "Пожалуйста, подождите..."
+            analyzing_text.get(lang_code, analyzing_text['ru'])
         )
+        
+        # Получаем текущее время в разных таймзонах
+        import pytz
+        from datetime import datetime, timedelta
+        
+        # Ключевые финансовые центры и их таймзоны
+        timezones = {
+            'Moscow': pytz.timezone('Europe/Moscow'),
+            'London': pytz.timezone('Europe/London'),
+            'New York': pytz.timezone('America/New_York'),
+            'Tokyo': pytz.timezone('Asia/Tokyo'),
+            'Sydney': pytz.timezone('Australia/Sydney'),
+            'Dubai': pytz.timezone('Asia/Dubai')
+        }
+        
+        # Получаем текущее время в разных финансовых центрах
+        current_utc = datetime.now(pytz.UTC)
+        time_in_zones = {zone: current_utc.astimezone(tz) for zone, tz in timezones.items()}
+        
+        # Названия финансовых центров на разных языках
+        timezone_names = {
+            'tg': {
+                'Moscow': 'Маскав',
+                'London': 'Лондон',
+                'New York': 'Ню-Йорк',
+                'Tokyo': 'Токио',
+                'Sydney': 'Сидней',
+                'Dubai': 'Дубай',
+                'time_header': '⏰ Вақти ҷаҳонӣ:'
+            },
+            'ru': {
+                'Moscow': 'Москва',
+                'London': 'Лондон',
+                'New York': 'Нью-Йорк',
+                'Tokyo': 'Токио',
+                'Sydney': 'Сидней',
+                'Dubai': 'Дубай',
+                'time_header': '⏰ Мировое время:'
+            },
+            'uz': {
+                'Moscow': 'Moskva',
+                'London': 'London',
+                'New York': 'Nyu-York',
+                'Tokyo': 'Tokio',
+                'Sydney': 'Sidney',
+                'Dubai': 'Dubay',
+                'time_header': '⏰ Jahon vaqti:'
+            },
+            'kk': {
+                'Moscow': 'Мәскеу',
+                'London': 'Лондон',
+                'New York': 'Нью-Йорк',
+                'Tokyo': 'Токио',
+                'Sydney': 'Сидней',
+                'Dubai': 'Дубай',
+                'time_header': '⏰ Әлемдік уақыт:'
+            },
+            'en': {
+                'Moscow': 'Moscow',
+                'London': 'London',
+                'New York': 'New York',
+                'Tokyo': 'Tokyo',
+                'Sydney': 'Sydney',
+                'Dubai': 'Dubai',
+                'time_header': '⏰ World time:'
+            }
+        }
+        
+        # Локализованные названия таймзон
+        localized_tz_names = timezone_names.get(lang_code, timezone_names['en'])
         
         # Симулируем анализ (в реальном боте здесь будет настоящий анализ)
         await asyncio.sleep(2)  # Имитация загрузки данных
@@ -4435,50 +7218,202 @@ async def handle_otc_pair_analysis(update: Update, context: ContextTypes.DEFAULT
         direction = random.choice(["BUY", "SELL"])
         confidence = random.randint(70, 90)
         
-        # Создаем клавиатуру для результата анализа
-        keyboard = []
+        # Данные индикаторов
+        rsi = random.randint(25, 75)
+        macd = round(random.uniform(-0.01, 0.01), 4)
         
-        # Добавляем кнопки действий
-        keyboard.append([
-            InlineKeyboardButton("🔄 Обновить анализ", callback_data=f"otc_{pair_data.replace('/', '_')}"),
-            InlineKeyboardButton("📊 Больше данных", callback_data=f"otc_more_{pair_data.replace('/', '_')}")
-        ])
+        # Локализованные позиции для Bollinger Bands
+        bb_positions = {
+            'tg': ["сарҳади поён", "миёна", "сарҳади боло"],
+            'ru': ["нижняя граница", "средняя", "верхняя граница"],
+            'uz': ["quyi chegara", "o'rta", "yuqori chegara"],
+            'kk': ["төменгі шекара", "орташа", "жоғарғы шекара"],
+            'en': ["lower band", "middle", "upper band"]
+        }
         
-        # Добавляем только кнопки "на главную страницу" и "сменить язык"
-        keyboard.append([
-            InlineKeyboardButton("🏠 На главную", callback_data="return_to_main")
-        ])
+        # Выбираем локализованную позицию
+        bb_position_list = bb_positions.get(lang_code, bb_positions['ru'])
+        bb_position = random.choice(bb_position_list)
         
-        keyboard.append([
-            InlineKeyboardButton("🌐 Сменить язык", callback_data="change_language")
-        ])
+        # Локализованные тексты для анализа
+        analysis_texts = {
+            'tg': {
+                'header': f"📊 *Таҳлили {pair_data}*",
+                'signal': "🎯 Сигнал",
+                'confidence': "📈 Боварӣ",
+                'expiry': "⏰ Вақти ба итмом расидан",
+                'through': "аз",
+                'min': "дақиқа",
+                'indicators': "📉 *Индикаторҳо:*",
+                'recommendation': "🔍 *Тавсия:*",
+                'open_deal': "Кушодани муомила",
+                'for': "барои",
+                'with_probability': "бо эҳтимолияти",
+                'risk_warning': "⚠️ *Савдо бо хатар алоқаманд аст. Ба масъулияти худ истифода баред.*"
+            },
+            'ru': {
+                'header': f"📊 *Анализ {pair_data}*",
+                'signal': "🎯 Сигнал",
+                'confidence': "📈 Уверенность",
+                'expiry': "⏰ Время экспирации",
+                'through': "через",
+                'min': "мин",
+                'indicators': "📉 *Индикаторы:*",
+                'recommendation': "🔍 *Рекомендация:*",
+                'open_deal': "Рекомендуется открыть сделку",
+                'for': "на",
+                'with_probability': "с вероятностью",
+                'risk_warning': "⚠️ *Торговля сопряжена с рисками. Используйте на свой страх и риск.*"
+            },
+            'uz': {
+                'header': f"📊 *{pair_data} tahlili*",
+                'signal': "🎯 Signal",
+                'confidence': "📈 Ishonch",
+                'expiry': "⏰ Tugash vaqti",
+                'through': "orqali",
+                'min': "daqiqa",
+                'indicators': "📉 *Indikatorlar:*",
+                'recommendation': "🔍 *Tavsiya:*",
+                'open_deal': "Bitim ochish tavsiya etiladi",
+                'for': "uchun",
+                'with_probability': "ehtimolligi bilan",
+                'risk_warning': "⚠️ *Savdo xatarlar bilan bog'liq. O'z javobgarligingiz ostida foydalaning.*"
+            },
+            'kk': {
+                'header': f"📊 *{pair_data} талдауы*",
+                'signal': "🎯 Сигнал",
+                'confidence': "📈 Сенімділік",
+                'expiry': "⏰ Аяқталу уақыты",
+                'through': "арқылы",
+                'min': "мин",
+                'indicators': "📉 *Индикаторлар:*",
+                'recommendation': "🔍 *Ұсыныс:*",
+                'open_deal': "Мәміле ашу ұсынылады",
+                'for': "үшін",
+                'with_probability': "ықтималдығымен",
+                'risk_warning': "⚠️ *Сауда тәуекелдермен байланысты. Өз жауапкершілігіңізбен пайдаланыңыз.*"
+            },
+            'en': {
+                'header': f"📊 *{pair_data} Analysis*",
+                'signal': "🎯 Signal",
+                'confidence': "📈 Confidence",
+                'expiry': "⏰ Expiry Time",
+                'through': "in",
+                'min': "min",
+                'indicators': "📉 *Indicators:*",
+                'recommendation': "🔍 *Recommendation:*",
+                'open_deal': "Recommended to open",
+                'for': "for",
+                'with_probability': "with probability",
+                'risk_warning': "⚠️ *Trading involves risks. Use at your own discretion.*"
+            }
+        }
+        
+        # Локализованные тексты для направления
+        direction_texts = {
+            'tg': {"BUY": "ХАРИД", "SELL": "ФУРӮШ"},
+            'ru': {"BUY": "ПОКУПКА", "SELL": "ПРОДАЖА"},
+            'uz': {"BUY": "SOTIB OLISH", "SELL": "SOTISH"},
+            'kk': {"BUY": "САТЫП АЛУ", "SELL": "САТУ"},
+            'en': {"BUY": "BUY", "SELL": "SELL"}
+        }
+        
+        # Получаем локализованные тексты
+        texts = analysis_texts.get(lang_code, analysis_texts['ru'])
+        dir_text = direction_texts.get(lang_code, direction_texts['ru']).get(direction, direction)
+        
+        # Создаем клавиатуру для результата анализа с локализованными названиями кнопок
+        keyboard_texts = {
+            'tg': {
+                'refresh': "🔄 Навсозии таҳлил", 
+                'more_data': "📊 Маълумоти бештар",
+                'home': "🏠 Ба саҳифаи асосӣ",
+                'back': "↩️ Бозгашт ба рӯйхати ҷуфтҳо"
+            },
+            'ru': {
+                'refresh': "🔄 Обновить анализ", 
+                'more_data': "📊 Больше данных",
+                'home': "🏠 На главную",
+                'back': "↩️ Назад к списку пар"
+            },
+            'uz': {
+                'refresh': "🔄 Tahlilni yangilash", 
+                'more_data': "📊 Ko'proq ma'lumot",
+                'home': "🏠 Bosh sahifaga",
+                'back': "↩️ Juftliklar ro'yxatiga qaytish"
+            },
+            'kk': {
+                'refresh': "🔄 Талдауды жаңарту", 
+                'more_data': "📊 Көбірек деректер",
+                'home': "🏠 Басты бетке",
+                'back': "↩️ Жұптар тізіміне оралу"
+            },
+            'en': {
+                'refresh': "🔄 Refresh Analysis", 
+                'more_data': "📊 More Data",
+                'home': "🏠 Home",
+                'back': "↩️ Back to Pairs List"
+            }
+        }
+        
+        # Получаем локализованные тексты для кнопок
+        button_texts = keyboard_texts.get(lang_code, keyboard_texts['ru'])
+        
+        # Создаем клавиатуру
+        keyboard = [
+            [
+                InlineKeyboardButton(button_texts['refresh'], callback_data=f"otc_{pair_data.replace('/', '_')}"),
+                InlineKeyboardButton(button_texts['more_data'], callback_data=f"otc_more_{pair_data.replace('/', '_')}")
+            ],
+            [InlineKeyboardButton(button_texts['back'], callback_data="otc_pairs")],
+            [InlineKeyboardButton(button_texts['home'], callback_data="return_to_main")]
+        ]
         
         # Время экспирации (5-10 минут от текущего времени)
         expiry_minutes = random.randint(5, 10)
         expiry_time = (datetime.now() + timedelta(minutes=expiry_minutes)).strftime("%H:%M")
         
-        # Данные индикаторов
-        rsi = random.randint(25, 75)
-        macd = round(random.uniform(-0.01, 0.01), 4)
-        bb_positions = ["нижняя граница", "средняя", "верхняя граница"]
-        bb_position = random.choice(bb_positions)
-        
         # Направление с эмодзи
         direction_emoji = "⬆️" if direction == "BUY" else "⬇️"
         
-        # Формируем текст сообщения с результатом анализа
+        # Формируем строку с мировым временем
+        world_time_lines = []
+        for zone, time_obj in time_in_zones.items():
+            zone_name = localized_tz_names.get(zone, zone)
+            time_str = time_obj.strftime("%H:%M:%S")
+            world_time_lines.append(f"{zone_name}: *{time_str}*")
+        
+        # Объединяем информацию о времени в разные строки, не делая строку слишком длинной
+        time_info = []
+        current_line = ""
+        for item in world_time_lines:
+            if len(current_line) + len(item) + 3 <= 40:  # Максимальная длина строки
+                if current_line:
+                    current_line += " | "
+                current_line += item
+            else:
+                time_info.append(current_line)
+                current_line = item
+        if current_line:
+            time_info.append(current_line)
+        
+        time_info_str = "\n".join(time_info)
+        
+        # Формируем текст сообщения с результатом анализа с локализованными текстами
         result_text = (
-            f"📊 *Анализ {pair_data}*\n\n"
-            f"🎯 Сигнал: {direction_emoji} *{direction}*\n"
-            f"📈 Уверенность: *{confidence}%*\n"
-            f"⏰ Время экспирации: *{expiry_time}* (через {expiry_minutes} мин)\n\n"
-            f"📉 *Индикаторы:*\n"
+            f"{texts['header']}\n\n"
+            f"{texts['signal']}: {direction_emoji} *{dir_text}*\n"
+            f"{texts['confidence']}: *{confidence}%*\n"
+            f"{texts['expiry']}: *{expiry_time}* ({texts['through']} {expiry_minutes} {texts['min']})\n\n"
+            f"{texts['indicators']}\n"
             f"• RSI: `{rsi}`\n"
             f"• MACD: `{macd}`\n"
             f"• Bollinger Bands: `{bb_position}`\n\n"
-            f"🔍 *Рекомендация:*\n"
-            f"{direction_emoji} Рекомендуется открыть сделку *{direction}* на {expiry_minutes} минут с вероятностью {confidence}%\n\n"
-            f"⚠️ *Торговля сопряжена с рисками. Используйте на свой страх и риск.*"
+            f"{texts['recommendation']}\n"
+            f"{direction_emoji} {texts['open_deal']} *{dir_text}* {texts['for']} {expiry_minutes} {texts['min']} {texts['with_probability']} {confidence}%\n\n"
+            f"{localized_tz_names['time_header']}\n"
+            f"{time_info_str}\n\n"
+            f"{texts['risk_warning']}"
         )
         
         # Отправляем сообщение с результатом анализа
