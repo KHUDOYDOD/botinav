@@ -165,15 +165,22 @@ def monitor_bot():
                 # Start bot process
                 logger.info("Starting bot process...")
                 try:
+                    # Kill any existing bot processes
+                    os.system('pkill -f "python bot.py"')
+                    time.sleep(2)  # Wait for processes to be killed
+                    
+                    # Start new bot process
                     os.system('python bot.py &')
                     logger.info("Bot restarted successfully")
+                    
                 except Exception as e:
                     logger.error(f"Failed to start bot: {e}")
+                    time.sleep(5)  # Wait before retry
 
-            time.sleep(30)  # Check every 30 seconds for faster recovery
+            time.sleep(15)  # Check more frequently
         except Exception as e:
             logger.error(f"Error in monitor thread: {e}")
-            time.sleep(60)
+            time.sleep(30)
 
 def run():
     """Run the Flask server"""
