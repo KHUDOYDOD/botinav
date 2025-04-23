@@ -29,6 +29,7 @@ if __name__ == "__main__":
         bot_thread.start()
         
         # Start Flask app if not being run by gunicorn
-        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+        # Use a different port for Flask to avoid conflict with bot
+        app.run(host='0.0.0.0', port=int(os.environ.get('FLASK_PORT', 8080)))
     except Exception as e:
         logger.error(f"Error starting bot: {e}")

@@ -174,9 +174,9 @@ def monitor_bot():
 
 def run():
     """Run the Flask server"""
-    # Check for environment variable PORT first
-    port = int(os.getenv('PORT', 5000))
-    logger.info(f"Using port {port} from environment")
+    # Use a different port for Flask to avoid conflict with bot
+    port = int(os.getenv('FLASK_PORT', 8080))
+    logger.info(f"Using port {port} for Flask server")
 
     # Log network interfaces
     logger.info("Available network interfaces:")
