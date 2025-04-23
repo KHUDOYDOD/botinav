@@ -55,6 +55,7 @@ ADMIN_SCHEDULER, ADMIN_API, ADMIN_SECURITY, ADMIN_PROXY, ADMIN_AUTO_SIGNALS = ra
 ADMIN_SEND_MESSAGE_TO_USER = 29
 ADMIN_MESSAGE_TO_PENDING, ADMIN_SELECT_USERS, ADMIN_CONTENT_MANAGER = range(30, 33)
 ADMIN_STATISTICS, ADMIN_QUICK_COMMANDS, ADMIN_HISTORY, ADMIN_PLUGINS, ADMIN_MARKETPLACE = range(33, 38)
+ADMIN_EDUCATION_MANAGEMENT = 38
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -410,6 +411,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
             
         # Обработка кнопок обучения трейдингу
+        if query.data == "trading_education":
+            logger.info(f"Showing trading education menu for user {user_id}")
+            await show_trading_education_menu(update, context)
+            return
+            
         if query.data == "trading_books":
             logger.info(f"Redirecting to handle_trading_books for user {user_id}")
             await handle_trading_books(update, context)
@@ -1157,6 +1163,33 @@ async def admin_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return ADMIN_BROADCAST_MESSAGE
         
+    elif action == "admin_education":
+        # Переход в раздел управления образовательным контентом
+        keyboard = [
+            [
+                InlineKeyboardButton("📚 Книги по трейдингу", callback_data="admin_edit_books"),
+                InlineKeyboardButton("🎓 Обучение для начинающих", callback_data="admin_edit_beginner")
+            ],
+            [
+                InlineKeyboardButton("📈 Торговые стратегии", callback_data="admin_edit_strategies"),
+                InlineKeyboardButton("🔧 Инструменты трейдинга", callback_data="admin_edit_tools")
+            ],
+            [
+                InlineKeyboardButton("📱 OTC пары и сигналы", callback_data="admin_edit_otc")
+            ],
+            [
+                InlineKeyboardButton("↩️ Назад", callback_data="admin_back")
+            ]
+        ]
+        
+        await query.edit_message_text(
+            "📚 *Управление образовательным контентом*\n\n"
+            "Выберите раздел для редактирования:",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_EDUCATION_MANAGEMENT
+    
     elif action == "admin_direct_message":
         # Прямое сообщение конкретному пользователю
         await query.edit_message_text(
@@ -5112,6 +5145,118 @@ async def admin_marketplace_handler(update: Update, context: ContextTypes.DEFAUL
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return ADMIN_MARKETPLACE
+
+async def show_trading_education_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Отображает главное меню обучения трейдингу"""
+    try:
+        query = update.callback_query
+        if not query:
+            return
+        
+        await query.answer()
+        
+        # Определяем язык пользователя
+        user_id = query.from_user.id
+        logger.info(f"Displaying trading education menu for user_id: {user_id}")
+        
+        # Получаем данные пользователя
+        user_data = get_user(user_id)
+        if user_data:
+            lang_code = user_data.get('language_code', 'ru')
+            logger.info(f"User language: {lang_code}")
+        else:
+            lang_code = 'ru'
+            logger.warning(f"User data not found, using default language")
+    except Exception as e:
+        logger.error(f"Error in show_trading_education_menu: {e}")
+        lang_code = 'ru'
+    
+    # Тексты заголовков на разных языках
+    titles = {
+        'tg': '📚 Маводи омӯзишӣ оид ба трейдинг',
+        'ru': '📚 Учебные материалы по трейдингу',
+        'uz': '📚 Treyding bo\'yicha o\'quv materiallari',
+        'kk': '📚 Трейдинг бойынша оқу материалдары',
+        'en': '📚 Trading Educational Materials'
+    }
+    
+    # Тексты описаний на разных языках
+    descriptions = {
+        'tg': 'Дар бахши "Омӯзиши трейдинг" шумо метавонед маводҳои муфид ва таълимӣ оид ба трейдинг пайдо кунед.',
+        'ru': 'В разделе "Обучение трейдингу" вы найдете полезные материалы и учебные пособия по торговле на финансовых рынках.',
+        'uz': 'Treyding ta\'limi bo\'limida siz moliya bozorlarida savdo qilish bo\'yicha foydali materiallar va o\'quv qo\'llanmalarini topasiz.',
+        'kk': 'Трейдинг бойынша оқыту бөлімінде сіз қаржы нарықтарында сауда жасау бойынша пайдалы материалдар мен оқу құралдарын табасыз.',
+        'en': 'In the "Trading Education" section, you\'ll find useful materials and tutorials on trading in financial markets.'
+    }
+    
+    # Локализованные кнопки для категорий
+    category_buttons = {
+        'tg': {
+            'books': "📚 Китобҳо барои трейдинг",
+            'beginner': "🔰 Омӯзиши трейдинг аз сифр",
+            'strategies': "📈 Стратегияҳои трейдинг",
+            'tools': "🧰 Абзорҳои трейдинг",
+            'back': "↩️ Бозгашт"
+        },
+        'ru': {
+            'books': "📚 Книги по трейдингу",
+            'beginner': "🔰 Обучение трейдингу с нуля", 
+            'strategies': "📈 Стратегии трейдинга",
+            'tools': "🧰 Инструменты трейдинга",
+            'back': "↩️ Назад"
+        },
+        'uz': {
+            'books': "📚 Treyding bo'yicha kitoblar",
+            'beginner': "🔰 Treyding bo'yicha boshlang'ich ta'lim",
+            'strategies': "📈 Treyding strategiyalari",
+            'tools': "🧰 Treyding vositalari",
+            'back': "↩️ Orqaga"
+        },
+        'kk': {
+            'books': "📚 Трейдинг бойынша кітаптар",
+            'beginner': "🔰 Трейдингті нөлден үйрену",
+            'strategies': "📈 Трейдинг стратегиялары",
+            'tools': "🧰 Трейдинг құралдары",
+            'back': "↩️ Артқа"
+        },
+        'en': {
+            'books': "📚 Trading Books",
+            'beginner': "🔰 Trading for Beginners",
+            'strategies': "📈 Trading Strategies",
+            'tools': "🧰 Trading Tools",
+            'back': "↩️ Back"
+        }
+    }
+    
+    # Получаем локализованные тексты
+    title = titles.get(lang_code, titles['ru'])
+    description = descriptions.get(lang_code, descriptions['ru'])
+    buttons = category_buttons.get(lang_code, category_buttons['ru'])
+    
+    # Создаем клавиатуру с разделами обучения
+    keyboard = [
+        [
+            InlineKeyboardButton(buttons['books'], callback_data="trading_books"),
+            InlineKeyboardButton(buttons['beginner'], callback_data="trading_beginner")
+        ],
+        [
+            InlineKeyboardButton(buttons['strategies'], callback_data="trading_strategies"),
+            InlineKeyboardButton(buttons['tools'], callback_data="trading_tools")
+        ],
+        [
+            InlineKeyboardButton(buttons['back'], callback_data="return_to_main")
+        ]
+    ]
+    
+    # Формируем сообщение с заголовком и описанием
+    message = f"*{title}*\n\n{description}"
+    
+    # Отправляем сообщение
+    await query.edit_message_text(
+        message,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode=ParseMode.MARKDOWN
+    )
 
 async def handle_trading_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик для раздела книги по трейдингу"""

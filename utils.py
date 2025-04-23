@@ -104,7 +104,19 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
     ])
     
     # Add Trading Education section with header
-    keyboard.append([InlineKeyboardButton("📚 Trading Education", callback_data="header_trading_education")])
+    trading_education_header = {
+        'tg': '📚 Омӯзиши трейдинг',
+        'ru': '📚 Обучение трейдингу',
+        'uz': '📚 Treyding ta\'limi',
+        'kk': '📚 Трейдинг бойынша біліктілік',
+        'en': '📚 Trading Education'
+    }
+    keyboard.append([
+        InlineKeyboardButton(
+            trading_education_header.get(current_lang, trading_education_header['ru']),
+            callback_data="trading_education"
+        )
+    ])
     
     # Trading books button text
     trading_books_text = {
