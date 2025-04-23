@@ -58,6 +58,10 @@ CURRENCY_PAIRS = {
     '🇿🇦 USD/ZAR': 'USDZAR=X'
 }
 
+# Разделяем валютные пары на Forex и Crypto для удобства
+forex_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if 'USD' not in k or '=X' in v}
+crypto_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if '-USD' in v}
+
 MESSAGES = {
     'tg': {
         'WELCOME': """🌟 *Хуш омадед ба боти пешрафтаи таҳлили бозори молиявӣ\!*
