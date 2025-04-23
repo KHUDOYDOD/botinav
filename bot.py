@@ -413,8 +413,13 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Обработка обычных валютных пар
         if query.data == "regular_pairs":
-            # Получаем язык пользователя
-            lang_code = get_user_language(user_id) or 'ru'
+            # Получаем язык пользователя из user_data
+            from models import get_user_language
+            lang_code = 'ru'  # Значение по умолчанию
+            try:
+                lang_code = get_user_language(user_id) or 'ru'
+            except Exception as e:
+                logger.error(f"Error getting language for user {user_id}: {e}")
             logger.info(f"Current language for user {user_id}: {lang_code}")
             
             # Создаем клавиатуру с обычными валютными парами
