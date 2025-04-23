@@ -425,35 +425,91 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Создаем клавиатуру с обычными валютными парами
             keyboard = []
             
-            # Добавляем форекс пары
-            forex_pairs_to_show = [
-                # Основные пары
-                '💶 EUR/USD', '💷 GBP/USD', '💴 USD/JPY', '💰 USD/CHF', '🍁 USD/CAD', '🦘 AUD/USD', '🥝 NZD/USD',
-                # Кросс-курсы
-                '🇪🇺 EUR/GBP', '🇪🇺 EUR/JPY', '🇪🇺 EUR/CHF', '🇪🇺 EUR/CAD', '🇪🇺 EUR/AUD', '🇪🇺 EUR/NZD',
-                '🇬🇧 GBP/JPY', '🇬🇧 GBP/CHF', '🇬🇧 GBP/CAD', '🇬🇧 GBP/AUD', '🇬🇧 GBP/NZD',
+            # Добавляем заголовок для основных валютных пар
+            keyboard.append([InlineKeyboardButton("🌟 ОСНОВНЫЕ ВАЛЮТНЫЕ ПАРЫ 🌟", callback_data="header_main")])
+            
+            # Основные форекс пары
+            major_pairs = [
+                '💶 EUR/USD', '💷 GBP/USD', '💴 USD/JPY', '💰 USD/CHF', 
+                '🍁 USD/CAD', '🦘 AUD/USD', '🥝 NZD/USD'
+            ]
+            
+            # Создаем группы по 2 пары в строке для основных пар
+            for i in range(0, len(major_pairs), 2):
+                row = []
+                row.append(InlineKeyboardButton(major_pairs[i], callback_data=major_pairs[i]))
+                if i + 1 < len(major_pairs):
+                    row.append(InlineKeyboardButton(major_pairs[i + 1], callback_data=major_pairs[i + 1]))
+                keyboard.append(row)
+            
+            # Добавляем разделитель для кросс-курсов EUR
+            keyboard.append([InlineKeyboardButton("💶 КРОСС-КУРСЫ EUR 💶", callback_data="header_eur")])
+            
+            # Кросс-курсы EUR
+            eur_pairs = [
+                '🇪🇺 EUR/GBP', '🇪🇺 EUR/JPY', '🇪🇺 EUR/CHF', 
+                '🇪🇺 EUR/CAD', '🇪🇺 EUR/AUD', '🇪🇺 EUR/NZD'
+            ]
+            
+            # Создаем группы по 2 пары в строке для кросс-курсов EUR
+            for i in range(0, len(eur_pairs), 2):
+                row = []
+                row.append(InlineKeyboardButton(eur_pairs[i], callback_data=eur_pairs[i]))
+                if i + 1 < len(eur_pairs):
+                    row.append(InlineKeyboardButton(eur_pairs[i + 1], callback_data=eur_pairs[i + 1]))
+                keyboard.append(row)
+            
+            # Добавляем разделитель для кросс-курсов GBP
+            keyboard.append([InlineKeyboardButton("💷 КРОСС-КУРСЫ GBP 💷", callback_data="header_gbp")])
+            
+            # Кросс-курсы GBP
+            gbp_pairs = [
+                '🇬🇧 GBP/JPY', '🇬🇧 GBP/CHF', '🇬🇧 GBP/CAD', 
+                '🇬🇧 GBP/AUD', '🇬🇧 GBP/NZD'
+            ]
+            
+            # Создаем группы по 2 пары в строке для кросс-курсов GBP
+            for i in range(0, len(gbp_pairs), 2):
+                row = []
+                row.append(InlineKeyboardButton(gbp_pairs[i], callback_data=gbp_pairs[i]))
+                if i + 1 < len(gbp_pairs):
+                    row.append(InlineKeyboardButton(gbp_pairs[i + 1], callback_data=gbp_pairs[i + 1]))
+                keyboard.append(row)
+            
+            # Добавляем разделитель для других кросс-курсов
+            keyboard.append([InlineKeyboardButton("🔄 ДРУГИЕ КРОСС-КУРСЫ 🔄", callback_data="header_other")])
+            
+            # Другие кросс-курсы
+            other_pairs = [
                 '🏝️ AUD/JPY', '🏝️ AUD/CAD', '🏝️ AUD/CHF', '🏝️ AUD/NZD',
-                '🇨🇦 CAD/JPY', '🇨🇦 CAD/CHF',
-                '🇨🇭 CHF/JPY',
+                '🇨🇦 CAD/JPY', '🇨🇦 CAD/CHF', '🇨🇭 CHF/JPY',
                 '🥝 NZD/JPY', '🥝 NZD/CHF', '🥝 NZD/CAD'
             ]
             
-            # Добавляем криптовалютные пары
-            crypto_pairs_to_show = [
+            # Создаем группы по 2 пары в строке для других кросс-курсов
+            for i in range(0, len(other_pairs), 2):
+                row = []
+                row.append(InlineKeyboardButton(other_pairs[i], callback_data=other_pairs[i]))
+                if i + 1 < len(other_pairs):
+                    row.append(InlineKeyboardButton(other_pairs[i + 1], callback_data=other_pairs[i + 1]))
+                keyboard.append(row)
+            
+            # Добавляем разделитель для криптовалют
+            keyboard.append([InlineKeyboardButton("₿ КРИПТОВАЛЮТЫ ₿", callback_data="header_crypto")])
+            
+            # Криптовалютные пары
+            crypto_pairs = [
                 '₿ BTC/USD', '⟠ ETH/USD', '✨ XRP/USD', '🐕 DOGE/USD', '☀️ SOL/USD',
                 '🔵 LINK/USD', '🃏 ADA/USD', '👾 DOT/USD', '💹 BNB/USD', '🔷 LTC/USD',
                 '₿ BTC/EUR', '⟠ ETH/EUR', '₿ BTC/JPY', '⟠ ETH/JPY'
             ]
             
-            # Объединяем все пары
-            all_pairs = forex_pairs_to_show + crypto_pairs_to_show
-            
-            # Создаем группы по 2 пары в строке
-            for i in range(0, len(all_pairs), 2):
+            # Создаем группы по 2 пары в строке для криптовалют
+            for i in range(0, len(crypto_pairs), 2):
                 row = []
-                row.append(InlineKeyboardButton(all_pairs[i], callback_data=all_pairs[i]))
-                if i + 1 < len(all_pairs):
-                    row.append(InlineKeyboardButton(all_pairs[i + 1], callback_data=all_pairs[i + 1]))
+                row.append(InlineKeyboardButton(crypto_pairs[i], callback_data=crypto_pairs[i]))
+                if i + 1 < len(crypto_pairs):
+                    row.append(InlineKeyboardButton(crypto_pairs[i + 1], callback_data=crypto_pairs[i + 1]))
                 keyboard.append(row)
                 
             # Добавляем кнопку для возврата в главное меню
@@ -486,6 +542,11 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 title_text.get(lang_code, title_text['ru']),
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
+            return
+            
+        # Обработка заголовков разделов (не делаем ничего, просто показываем сообщение)
+        if query.data.startswith("header_"):
+            await query.answer("Выберите конкретную валютную пару из списка")
             return
             
         # Обработка OTC Pocket Option кнопок
