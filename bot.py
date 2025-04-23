@@ -426,10 +426,34 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = []
             
             # Добавляем форекс пары
-            forex_pairs_to_show = ['💶 EUR/USD', '💷 GBP/USD', '💴 USD/JPY', '💰 USD/CHF', '🍁 USD/CAD', '🦘 AUD/USD', '🥝 NZD/USD']
-            for pair_name in forex_pairs_to_show:
+            forex_pairs_to_show = [
+                # Основные пары
+                '💶 EUR/USD', '💷 GBP/USD', '💴 USD/JPY', '💰 USD/CHF', '🍁 USD/CAD', '🦘 AUD/USD', '🥝 NZD/USD',
+                # Кросс-курсы
+                '🇪🇺 EUR/GBP', '🇪🇺 EUR/JPY', '🇪🇺 EUR/CHF', '🇪🇺 EUR/CAD', '🇪🇺 EUR/AUD', '🇪🇺 EUR/NZD',
+                '🇬🇧 GBP/JPY', '🇬🇧 GBP/CHF', '🇬🇧 GBP/CAD', '🇬🇧 GBP/AUD', '🇬🇧 GBP/NZD',
+                '🏝️ AUD/JPY', '🏝️ AUD/CAD', '🏝️ AUD/CHF', '🏝️ AUD/NZD',
+                '🇨🇦 CAD/JPY', '🇨🇦 CAD/CHF',
+                '🇨🇭 CHF/JPY',
+                '🥝 NZD/JPY', '🥝 NZD/CHF', '🥝 NZD/CAD'
+            ]
+            
+            # Добавляем криптовалютные пары
+            crypto_pairs_to_show = [
+                '₿ BTC/USD', '⟠ ETH/USD', '✨ XRP/USD', '🐕 DOGE/USD', '☀️ SOL/USD',
+                '🔵 LINK/USD', '🃏 ADA/USD', '👾 DOT/USD', '💹 BNB/USD', '🔷 LTC/USD',
+                '₿ BTC/EUR', '⟠ ETH/EUR', '₿ BTC/JPY', '⟠ ETH/JPY'
+            ]
+            
+            # Объединяем все пары
+            all_pairs = forex_pairs_to_show + crypto_pairs_to_show
+            
+            # Создаем группы по 2 пары в строке
+            for i in range(0, len(all_pairs), 2):
                 row = []
-                row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
+                row.append(InlineKeyboardButton(all_pairs[i], callback_data=all_pairs[i]))
+                if i + 1 < len(all_pairs):
+                    row.append(InlineKeyboardButton(all_pairs[i + 1], callback_data=all_pairs[i + 1]))
                 keyboard.append(row)
                 
             # Добавляем кнопку для возврата в главное меню

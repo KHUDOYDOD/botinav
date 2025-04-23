@@ -524,7 +524,10 @@ def home():
                             <input type="text" id="currency-search" placeholder="Поиск валютной пары..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--primary-color); background-color: var(--feature-bg); color: var(--text-color); margin-bottom: 10px;">
                             
                             <div id="currency-list" style="display: grid; grid-template-columns: 1fr; gap: 5px;">
-                                <!-- Форекс пары -->
+                                <!-- Основные Форекс пары -->
+                                <div style="padding: 10px; font-weight: 600; color: var(--secondary-color); border-bottom: 1px solid rgba(122, 162, 247, 0.2); margin-bottom: 5px;">
+                                    Основные валютные пары
+                                </div>
                                 <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
                                     <span style="margin-right: 10px;">💶</span>EUR/USD
                                 </div>
@@ -547,7 +550,50 @@ def home():
                                     <span style="margin-right: 10px;">🥝</span>NZD/USD
                                 </div>
                                 
-                                <!-- Кросс-курсы -->
+                                <!-- Кросс-курсы EUR -->
+                                <div style="padding: 10px; font-weight: 600; color: var(--secondary-color); border-bottom: 1px solid rgba(122, 162, 247, 0.2); margin: 10px 0 5px 0;">
+                                    Кросс-курсы EUR
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/GBP
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/CHF
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/CAD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/AUD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇪🇺</span>EUR/NZD
+                                </div>
+                                
+                                <!-- Кросс-курсы GBP -->
+                                <div style="padding: 10px; font-weight: 600; color: var(--secondary-color); border-bottom: 1px solid rgba(122, 162, 247, 0.2); margin: 10px 0 5px 0;">
+                                    Кросс-курсы GBP
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇬🇧</span>GBP/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇬🇧</span>GBP/CHF
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇬🇧</span>GBP/CAD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇬🇧</span>GBP/AUD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🇬🇧</span>GBP/NZD
+                                </div>
+                                
+                                <!-- Другие кросс-курсы -->
                                 <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
                                     <span style="margin-right: 10px;">💶💷</span>EUR/GBP
                                 </div>
