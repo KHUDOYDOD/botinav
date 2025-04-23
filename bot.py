@@ -111,11 +111,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from create_welcome_image import create_welcome_image
             
             welcome_text = f"🚀 *Приветствуем, @{username}!*\n\n" \
-                          "🔹 *Торговый Аналитический Бот* - ваш профессиональный помощник в мире финансовых рынков.\n\n" \
-                          "✅ Более 30+ валютных пар и криптовалют\n" \
-                          "✅ Высокоточные торговые сигналы\n" \
-                          "✅ Профессиональные графики и индикаторы\n" \
-                          "✅ Аналитика на различных таймфреймах\n\n" \
+                          "🔹 *Продвинутый бот анализа финансовых рынков!*\n\n" \
+                          "📊 Основные возможности:\n" \
+                          "• 💹 Технический анализ для 30+ валютных пар\n" \
+                          "• 📈 Надёжные индикаторы (RSI, MACD, EMA)\n" \
+                          "• ⚡️ Мгновенные сигналы с точностью до 95%\n" \
+                          "• 📱 Поддержка 5 языков\n" \
+                          "• 📊 Чёткие и подробные графики\n" \
+                          "• ⏱ Анализ на разных интервалах (1, 5, 15, 30 минут)\n\n" \
+                          "💎 Валютные пары:\n" \
+                          "• 🏆 Основные пары: EUR/USD, GBP/USD, USD/JPY и другие\n" \
+                          "• 🌟 Кросс-курсы: EUR/GBP, GBP/JPY, EUR/JPY и другие\n" \
+                          "• 💰 Криптовалюты: BTC/USD, ETH/USD, XRP/USD и другие\n\n" \
+                          "📱 Контакты:\n" \
+                          "• Поддержка 24/7: @tradeporu\n" \
+                          "• Сайт: TRADEPO.RU\n\n" \
                           "📊 *Для получения доступа* необходимо отправить запрос на регистрацию.\n" \
                           "⏱ Администратор рассмотрит вашу заявку в ближайшее время.\n\n" \
                           "📝 Вы можете отправить заявку прямо сейчас, нажав на кнопку ниже, " \
@@ -4937,20 +4947,194 @@ async def admin_content_manager_handler(update: Update, context: ContextTypes.DE
             reply_markup=get_admin_keyboard()
         )
         return ADMIN_MENU
+    
+    elif query.data == "admin_education_content":
+        # Обработка управления образовательным контентом
+        education_text = (
+            "📚 Управление образовательным контентом\n\n"
+            "Выберите раздел для редактирования:"
+        )
         
-    # Заглушка для управления контентом
+        keyboard = [
+            [InlineKeyboardButton("📖 Книги по трейдингу", callback_data="admin_trading_books")],
+            [InlineKeyboardButton("🔰 Обучение для начинающих", callback_data="admin_trading_beginner")],
+            [InlineKeyboardButton("📈 Торговые стратегии", callback_data="admin_trading_strategies")],
+            [InlineKeyboardButton("🔧 Инструменты трейдинга", callback_data="admin_trading_tools")],
+            [InlineKeyboardButton("📱 OTC пары и сигналы", callback_data="admin_otc_pairs")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_content")]
+        ]
+        
+        await query.edit_message_text(
+            education_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_trading_books":
+        # Управление книгами по трейдингу
+        books_text = (
+            "📖 Редактирование раздела книг по трейдингу\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить книгу", callback_data="admin_add_book")],
+            [InlineKeyboardButton("✏️ Редактировать существующие", callback_data="admin_edit_books")],
+            [InlineKeyboardButton("🗑️ Удалить книгу", callback_data="admin_delete_book")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_education_content")]
+        ]
+        
+        await query.edit_message_text(
+            books_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_trading_strategies":
+        # Управление торговыми стратегиями
+        strategies_text = (
+            "📈 Редактирование торговых стратегий\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить стратегию", callback_data="admin_add_strategy")],
+            [InlineKeyboardButton("✏️ Редактировать существующие", callback_data="admin_edit_strategies")],
+            [InlineKeyboardButton("🗑️ Удалить стратегию", callback_data="admin_delete_strategy")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_education_content")]
+        ]
+        
+        await query.edit_message_text(
+            strategies_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_trading_tools":
+        # Управление инструментами трейдинга
+        tools_text = (
+            "🔧 Редактирование инструментов трейдинга\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить инструмент", callback_data="admin_add_tool")],
+            [InlineKeyboardButton("✏️ Редактировать существующие", callback_data="admin_edit_tools")],
+            [InlineKeyboardButton("🗑️ Удалить инструмент", callback_data="admin_delete_tool")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_education_content")]
+        ]
+        
+        await query.edit_message_text(
+            tools_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_trading_beginner":
+        # Управление разделом для начинающих
+        beginner_text = (
+            "🔰 Редактирование раздела для начинающих\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить тему", callback_data="admin_add_beginner_topic")],
+            [InlineKeyboardButton("✏️ Редактировать темы", callback_data="admin_edit_beginner_topics")],
+            [InlineKeyboardButton("🗑️ Удалить тему", callback_data="admin_delete_beginner_topic")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_education_content")]
+        ]
+        
+        await query.edit_message_text(
+            beginner_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_otc_pairs":
+        # Управление OTC парами и сигналами
+        otc_text = (
+            "📱 Редактирование OTC пар и сигналов\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Добавить OTC пару", callback_data="admin_add_otc_pair")],
+            [InlineKeyboardButton("✏️ Редактировать OTC пары", callback_data="admin_edit_otc_pairs")],
+            [InlineKeyboardButton("🔔 Управление сигналами", callback_data="admin_otc_signals")],
+            [InlineKeyboardButton("↩️ Назад", callback_data="admin_education_content")]
+        ]
+        
+        await query.edit_message_text(
+            otc_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data.startswith("admin_add_") or query.data.startswith("admin_edit_") or query.data.startswith("admin_delete_"):
+        # Временная заглушка для функций добавления/редактирования/удаления
+        action_type = "добавления" if "add" in query.data else "редактирования" if "edit" in query.data else "удаления"
+        section_type = query.data.replace("admin_add_", "").replace("admin_edit_", "").replace("admin_delete_", "")
+        
+        # Более понятные названия для разделов
+        section_names = {
+            "book": "книги", 
+            "books": "книг",
+            "strategy": "стратегии",
+            "strategies": "стратегий",
+            "tool": "инструмента",
+            "tools": "инструментов",
+            "beginner_topic": "темы для начинающих",
+            "beginner_topics": "тем для начинающих",
+            "otc_pair": "OTC пары",
+            "otc_pairs": "OTC пар",
+        }
+        
+        section_name = section_names.get(section_type, section_type)
+        
+        message_text = (
+            f"⚙️ Функция {action_type} {section_name}\n\n"
+            f"Эта функция находится в разработке и будет доступна в ближайшем обновлении.\n\n"
+            f"Вы можете пока создать/изменить контент вручную в коде бота."
+        )
+        
+        # Определяем, к какому разделу возвращаться
+        back_to = "admin_education_content"
+        if "book" in section_type:
+            back_to = "admin_trading_books"
+        elif "strategy" in section_type:
+            back_to = "admin_trading_strategies"
+        elif "tool" in section_type:
+            back_to = "admin_trading_tools"
+        elif "beginner" in section_type:
+            back_to = "admin_trading_beginner"
+        elif "otc" in section_type:
+            back_to = "admin_otc_pairs"
+        
+        keyboard = [
+            [InlineKeyboardButton("↩️ Назад", callback_data=back_to)]
+        ]
+        
+        await query.edit_message_text(
+            message_text,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return ADMIN_CONTENT_MANAGER
+    
+    elif query.data == "admin_content":
+        # Возврат в основное меню управления контентом
+        pass
+    
+    # Главное меню управления контентом
     content_text = (
         "📑 Управление контентом\n\n"
-        "⚠️ Функция в разработке\n\n"
-        "Скоро здесь появится возможность управления контентом бота:\n"
-        "• Управление изображениями\n"
-        "• Управление графиками\n"
-        "• Управление видео\n"
-        "• Управление файлами\n"
-        "и другие возможности для работы с контентом."
+        "Выберите категорию контента для управления:"
     )
     
     keyboard = [
+        [InlineKeyboardButton("📚 Образовательный контент", callback_data="admin_education_content")],
+        [InlineKeyboardButton("🖼 Изображения и графики", callback_data="admin_images")],
+        [InlineKeyboardButton("📂 Файлы и документы", callback_data="admin_files")],
+        [InlineKeyboardButton("🎨 Настройка внешнего вида", callback_data="admin_appearance")],
         [InlineKeyboardButton("↩️ Назад", callback_data="admin_back")]
     ]
     
@@ -4958,6 +5142,7 @@ async def admin_content_manager_handler(update: Update, context: ContextTypes.DE
         content_text,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+    
     return ADMIN_CONTENT_MANAGER
 
 async def admin_statistics_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5258,6 +5443,9 @@ async def show_trading_education_menu(update: Update, context: ContextTypes.DEFA
         parse_mode=ParseMode.MARKDOWN
     )
 
+# Глобальная переменная для книг, доступная для всех функций
+books = {}
+
 async def handle_trading_books(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик для раздела книги по трейдингу"""
     try:
@@ -5302,6 +5490,7 @@ async def handle_trading_books(update: Update, context: ContextTypes.DEFAULT_TYP
     }
     
     # Список книг на разных языках с подробной информацией и ссылками для скачивания
+    global books
     books = {
         'tg': [
             {
@@ -6557,6 +6746,83 @@ async def show_strategy_details(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Словари с описаниями стратегий на разных языках
     strategy_details = {
+        'Скальпинг': {
+            'ru': {
+                'title': '⚡ Скальпинг (Scalping)',
+                'description': 'Быстрая торговля с целью получения небольшой прибыли от минимальных движений цены. Характеризуется множеством краткосрочных сделок в течение дня.',
+                'how_it_works': 'Как это работает:\n'
+                                '1. Использование таймфреймов M1-M5 для поиска торговых возможностей\n'
+                                '2. Открытие позиций при небольших импульсах цены или прорывах уровней\n'
+                                '3. Удержание позиций от нескольких секунд до нескольких минут\n'
+                                '4. Использование малых стоп-лоссов и тейк-профитов (1-10 пунктов)\n'
+                                '5. Закрытие всех позиций к концу торговой сессии',
+                'example': 'Пример: Трейдер замечает формирование паттерна "Пинбар" на 5-минутном графике GBP/USD. Он открывает позицию с целью заработать 5-7 пунктов и выходит из сделки через 2-3 минуты.',
+                'image_description': 'На графике EUR/USD (M5) показаны короткие сделки скальпинга с тейк-профитами в 5-8 пунктов, отмеченные точками входа (синие стрелки) и выхода (зеленые стрелки).',
+                'pros_cons': '*Преимущества:*\n'
+                            '✅ Множество торговых возможностей в течение дня\n'
+                            '✅ Быстрое получение результата\n'
+                            '✅ Меньшая подверженность неожиданным фундаментальным событиям\n'
+                            '✅ Возможность заработка при любом состоянии рынка\n\n'
+                            '*Недостатки:*\n'
+                            '❌ Высокие комиссии и спреды могут съедать прибыль\n'
+                            '❌ Требует постоянной концентрации и быстрой реакции\n'
+                            '❌ Высокая психологическая нагрузка\n'
+                            '❌ Необходимость использовать большое кредитное плечо',
+                'tools': '*Инструменты для скальпинга:*\n'
+                        '• Платформы: cTrader, MetaTrader 5\n'
+                        '• Индикаторы: MACD (с настройками 5,3,3), Bollinger Bands (10,2), Stochastic (5,3,3)\n'
+                        '• Брокеры с низкими спредами и быстрым исполнением\n'
+                        '• Скрипты для автоматического выставления стоп-лоссов и тейк-профитов'
+            },
+            'en': {
+                'title': '⚡ Scalping',
+                'description': 'Fast-paced trading aimed at capturing small profits from minimal price movements. Characterized by multiple short-term trades throughout the day.',
+                'how_it_works': 'How it works:\n'
+                                '1. Use of M1-M5 timeframes to find trading opportunities\n'
+                                '2. Opening positions during small price impulses or level breakouts\n'
+                                '3. Holding positions from a few seconds to a few minutes\n'
+                                '4. Using small stop-losses and take-profits (1-10 points)\n'
+                                '5. Closing all positions by the end of the trading session',
+                'example': 'Example: A trader notices a "Pinbar" pattern forming on the 5-minute GBP/USD chart. They open a position aiming to make 5-7 points and exit the trade within 2-3 minutes.',
+                'image_description': 'The EUR/USD chart (M5) shows short scalping trades with take-profits of 5-8 points, marked with entry points (blue arrows) and exit points (green arrows).',
+                'pros_cons': '*Advantages:*\n'
+                            '✅ Multiple trading opportunities throughout the day\n'
+                            '✅ Quick results\n'
+                            '✅ Less exposure to unexpected fundamental events\n'
+                            '✅ Ability to profit in any market condition\n\n'
+                            '*Disadvantages:*\n'
+                            '❌ High commissions and spreads can eat into profits\n'
+                            '❌ Requires constant concentration and quick reactions\n'
+                            '❌ High psychological pressure\n'
+                            '❌ Need to use high leverage',
+                'tools': '*Tools for Scalping:*\n'
+                        '• Platforms: cTrader, MetaTrader 5\n'
+                        '• Indicators: MACD (with settings 5,3,3), Bollinger Bands (10,2), Stochastic (5,3,3)\n'
+                        '• Brokers with low spreads and fast execution\n'
+                        '• Scripts for automatic setting of stop-losses and take-profits'
+            },
+            'tg': {
+                'title': '⚡ Скалпинг (Scalping)',
+                'description': 'Савдои босуръат бо мақсади гирифтани фоидаи хурд аз ҳаракатҳои ҷузъии нарх. Бо миқдори зиёди муомилаҳои кӯтоҳмуддат дар тӯли рӯз тавсиф карда мешавад.',
+                'how_it_works': 'Чӣ тавр кор мекунад:\n'
+                                '1. Истифодаи давраҳои вақти M1-M5 барои ёфтани имкониятҳои савдо\n'
+                                '2. Кушодани мавқеъҳо ҳангоми импулсҳои хурди нарх ё рахнаҳои сатҳ\n'
+                                '3. Нигоҳ доштани мавқеъҳо аз якчанд сония то якчанд дақиқа\n'
+                                '4. Истифодаи дастурҳои хурди стоп-лосс ва тейк-профит (1-10 пункт)\n'
+                                '5. Бастани ҳамаи мавқеъҳо то охири ҷаласаи савдо',
+                'example': 'Мисол: Трейдер ташаккули намунаи "Пинбар"-ро дар графики 5-дақиқагии GBP/USD мебинад. Вай мавқеъро бо мақсади ба даст овардани 5-7 пункт мекушояд ва аз муомила дар муддати 2-3 дақиқа мебарояд.',
+                'pros_cons': '*Афзалиятҳо:*\n'
+                            '✅ Имкониятҳои бисёри савдо дар тӯли рӯз\n'
+                            '✅ Натиҷаи фаврӣ\n'
+                            '✅ Осебпазирии камтар ба рӯйдодҳои ғайричашмдошти асосӣ\n'
+                            '✅ Имконияти даромад дар ҳар гуна шароити бозор\n\n'
+                            '*Камбудиҳо:*\n'
+                            '❌ Ҳаққи хизмат ва спредҳои баланд метавонанд фоидаро хӯранд\n'
+                            '❌ Тамаркуз ва аксуламали доимиро талаб мекунад\n'
+                            '❌ Фишори баланди психологӣ\n'
+                            '❌ Зарурати истифодаи рычаги баланд'
+            }
+        },
         'Трендоваястратегия': {
             'tg': {
                 'title': '📊 Стратегияи руйтамоили (Trend Trading)',
@@ -6638,6 +6904,158 @@ async def show_strategy_details(update: Update, context: ContextTypes.DEFAULT_TY
                             '*Disadvantages:*\n'
                             '❌ Possible late identification of the trend\n'
                             '❌ Requires patience during trendless market periods'
+            }
+        },
+        'Свингтрейдинг': {
+            'ru': {
+                'title': '🔄 Свинг-трейдинг (Swing Trading)',
+                'description': 'Среднесрочная торговая стратегия, нацеленная на получение прибыли от изменений цены в течение нескольких дней или недель. Использует преимущества колебаний (свингов) рынка.',
+                'how_it_works': 'Как это работает:\n'
+                               '1. Определение текущего тренда на старших таймфреймах (H4, Daily)\n'
+                               '2. Поиск точек разворота или продолжения тренда на младших таймфреймах (H1)\n'
+                               '3. Открытие позиций с периодом удержания от нескольких дней до нескольких недель\n'
+                               '4. Использование широких стоп-лоссов и тейк-профитов для учета рыночной волатильности\n'
+                               '5. Частичное закрытие позиций при достижении определенных уровней прибыли',
+                'example': 'Пример: Трейдер замечает формирование паттерна "Голова и плечи" на дневном графике USD/JPY, указывающего на возможный разворот тренда. Он открывает короткую позицию, устанавливая стоп-лосс выше "головы" паттерна и планируя удерживать сделку несколько недель для достижения целевого уровня.',
+                'image_description': 'На графике GBP/USD (Daily) отмечены ключевые точки свинг-трейдинга: входы при отскоках от уровней поддержки/сопротивления, стоп-лоссы выше/ниже локальных экстремумов и целевые уровни на основании предыдущих свингов.',
+                'pros_cons': '*Преимущества:*\n'
+                           '✅ Меньшее количество сделок и более низкие комиссии\n'
+                           '✅ Не требует постоянного мониторинга рынка\n'
+                           '✅ Возможность совмещать с основной работой\n'
+                           '✅ Более высокое соотношение риск/прибыль по сравнению с дневным трейдингом\n\n'
+                           '*Недостатки:*\n'
+                           '❌ Более высокий размер стоп-лосса в пунктах\n'
+                           '❌ Подверженность рискам новостных событий\n'
+                           '❌ Требуется больше терпения и дисциплины\n'
+                           '❌ Меньше торговых возможностей по сравнению с внутридневной торговлей',
+                'tools': '*Инструменты для свинг-трейдинга:*\n'
+                        '• Графические паттерны: "Голова и плечи", "Двойной верх/низ", "Флаг"\n'
+                        '• Индикаторы: EMA (8, 21), RSI (14), MACD (12, 26, 9), Фибоначчи\n'
+                        '• Уровни поддержки и сопротивления, ключевые ценовые уровни\n'
+                        '• Инструменты управления рисками для больших временных периодов'
+            },
+            'en': {
+                'title': '🔄 Swing Trading',
+                'description': 'A medium-term trading strategy aimed at capturing price changes over several days or weeks. Takes advantage of market swings.',
+                'how_it_works': 'How it works:\n'
+                               '1. Determine the current trend on higher timeframes (H4, Daily)\n'
+                               '2. Look for reversal or continuation points on lower timeframes (H1)\n'
+                               '3. Open positions with holding periods from several days to several weeks\n'
+                               '4. Use wider stop-losses and take-profits to account for market volatility\n'
+                               '5. Partially close positions when certain profit levels are reached',
+                'example': 'Example: A trader notices a "Head and Shoulders" pattern forming on the daily USD/JPY chart, indicating a possible trend reversal. They open a short position, setting a stop-loss above the "head" of the pattern and planning to hold the trade for several weeks to reach the target level.',
+                'image_description': 'The GBP/USD chart (Daily) shows key swing trading points: entries at bounces from support/resistance levels, stop-losses above/below local extremes, and target levels based on previous swings.',
+                'pros_cons': '*Advantages:*\n'
+                           '✅ Fewer trades and lower commissions\n'
+                           '✅ Does not require constant market monitoring\n'
+                           '✅ Can be combined with a full-time job\n'
+                           '✅ Higher risk/reward ratio compared to day trading\n\n'
+                           '*Disadvantages:*\n'
+                           '❌ Higher stop-loss size in points\n'
+                           '❌ Exposure to news event risks\n'
+                           '❌ Requires more patience and discipline\n'
+                           '❌ Fewer trading opportunities compared to intraday trading',
+                'tools': '*Tools for Swing Trading:*\n'
+                        '• Chart patterns: "Head and Shoulders", "Double Top/Bottom", "Flag"\n'
+                        '• Indicators: EMA (8, 21), RSI (14), MACD (12, 26, 9), Fibonacci\n'
+                        '• Support and resistance levels, key price levels\n'
+                        '• Risk management tools for longer time periods'
+            },
+            'tg': {
+                'title': '🔄 Свинг-трейдинг (Swing Trading)',
+                'description': 'Стратегияи савдои миёнамуҳлат, ки ба гирифтани фоида аз тағйироти нарх дар давоми якчанд рӯз ё ҳафта равона карда шудааст. Аз афзалиятҳои тағйироти (свингҳои) бозор истифода мебарад.',
+                'how_it_works': 'Чӣ тавр кор мекунад:\n'
+                               '1. Муайян кардани тамоюли ҷорӣ дар давраҳои вақти баландтар (H4, Daily)\n'
+                               '2. Ҷустуҷӯи нуқтаҳои баргашт ё давомдиҳии тамоюл дар давраҳои вақти хурдтар (H1)\n'
+                               '3. Кушодани мавқеъҳо бо давраи нигоҳдорӣ аз якчанд рӯз то якчанд ҳафта\n'
+                               '4. Истифодаи дастурҳои васеи стоп-лосс ва тейк-профит барои ба ҳисоб гирифтани ноустувории бозор\n'
+                               '5. Бастани ҷузъии мавқеъҳо ҳангоми ба даст овардани сатҳҳои муайяни фоида',
+                'pros_cons': '*Афзалиятҳо:*\n'
+                           '✅ Шумораи камтари муомилаҳо ва ҳаққи камтари комиссия\n'
+                           '✅ Назорати доимии бозорро талаб намекунад\n'
+                           '✅ Имконияти муттаҳид кардан бо кори асосӣ\n'
+                           '✅ Таносуби баландтари хавф/фоида нисбати трейдинги рӯзона\n\n'
+                           '*Камбудиҳо:*\n'
+                           '❌ Андозаи баландтари стоп-лосс дар пунктҳо\n'
+                           '❌ Осебпазирӣ ба хавфҳои рӯйдодҳои хабарӣ\n'
+                           '❌ Сабр ва интизоми бештар талаб карда мешавад\n'
+                           '❌ Имкониятҳои камтари савдо нисбат ба савдои дохилирӯзӣ'
+            }
+        },
+        'Позиционнаяторговля': {
+            'ru': {
+                'title': '📆 Позиционная торговля (Position Trading)',
+                'description': 'Долгосрочная торговая стратегия, основанная на удержании позиций от нескольких недель до нескольких месяцев или даже лет. Ориентирована на выявление и следование за долгосрочными трендами рынка.',
+                'how_it_works': 'Как это работает:\n'
+                               '1. Анализ фундаментальных факторов и макроэкономических тенденций\n'
+                               '2. Определение долгосрочного тренда на дневных и недельных графиках\n'
+                               '3. Использование крупных уровней поддержки и сопротивления\n'
+                               '4. Открытие позиций с расчетом на значительные движения цены\n'
+                               '5. Удержание сделок в течение длительного периода с периодической корректировкой стоп-лоссов',
+                'example': 'Пример: Инвестор анализирует экономические показатели США и Европы, прогнозируя долгосрочное укрепление доллара. На недельном графике EUR/USD формируется нисходящий тренд. Трейдер открывает короткую позицию на уровне 1.1200 с целью 1.0500 и удерживает её несколько месяцев, передвигая стоп-лосс вслед за движением цены.',
+                'image_description': 'На недельном графике EUR/USD показан долгосрочный нисходящий тренд с точкой входа в продажу на ключевом уровне сопротивления. Отмечено постепенное движение стоп-лосса вниз по мере развития тренда и несколько промежуточных уровней фиксации части прибыли.',
+                'pros_cons': '*Преимущества:*\n'
+                           '✅ Минимальные временные затраты на торговлю\n'
+                           '✅ Очень низкие комиссионные расходы\n'
+                           '✅ Возможность получения значительной прибыли от масштабных движений рынка\n'
+                           '✅ Меньшая подверженность рыночному шуму и краткосрочным колебаниям\n\n'
+                           '*Недостатки:*\n'
+                           '❌ Требует значительного торгового капитала\n'
+                           '❌ Длительное ожидание результатов\n'
+                           '❌ Необходимость глубокого понимания фундаментальных факторов\n'
+                           '❌ Риск упустить другие торговые возможности из-за замороженного капитала',
+                'tools': '*Инструменты для позиционной торговли:*\n'
+                        '• Фундаментальный анализ: отчеты центральных банков, макроэкономические индикаторы\n'
+                        '• Технические индикаторы: MA (50, 200), MACD на недельных графиках\n'
+                        '• Методы определения глобальных трендов: метод Доу, волновая теория Эллиотта\n'
+                        '• Инструменты управления капиталом для долгосрочных позиций'
+            },
+            'en': {
+                'title': '📆 Position Trading',
+                'description': 'A long-term trading strategy based on holding positions from several weeks to several months or even years. Focused on identifying and following long-term market trends.',
+                'how_it_works': 'How it works:\n'
+                               '1. Analysis of fundamental factors and macroeconomic trends\n'
+                               '2. Determining the long-term trend on daily and weekly charts\n'
+                               '3. Using major support and resistance levels\n'
+                               '4. Opening positions calculated for significant price movements\n'
+                               '5. Holding trades for an extended period with periodic adjustment of stop-losses',
+                'example': 'Example: An investor analyzes economic indicators of the US and Europe, predicting long-term strengthening of the dollar. A downtrend forms on the weekly EUR/USD chart. The trader opens a short position at 1.1200 targeting 1.0500 and holds it for several months, trailing the stop-loss as price moves.',
+                'image_description': 'The weekly EUR/USD chart shows a long-term downtrend with a sell entry point at a key resistance level. Gradual movement of the stop-loss downward as the trend develops and several intermediate levels for partial profit-taking are marked.',
+                'pros_cons': '*Advantages:*\n'
+                           '✅ Minimal time investment in trading\n'
+                           '✅ Very low commission expenses\n'
+                           '✅ Potential for significant profits from large market movements\n'
+                           '✅ Less exposure to market noise and short-term fluctuations\n\n'
+                           '*Disadvantages:*\n'
+                           '❌ Requires substantial trading capital\n'
+                           '❌ Long waiting period for results\n'
+                           '❌ Needs deep understanding of fundamental factors\n'
+                           '❌ Risk of missing other trading opportunities due to tied-up capital',
+                'tools': '*Tools for Position Trading:*\n'
+                        '• Fundamental analysis: central bank reports, macroeconomic indicators\n'
+                        '• Technical indicators: MA (50, 200), MACD on weekly charts\n'
+                        '• Methods for determining global trends: Dow Theory, Elliott Wave Theory\n'
+                        '• Capital management tools for long-term positions'
+            },
+            'tg': {
+                'title': '📆 Савдои мавқеӣ (Position Trading)',
+                'description': 'Стратегияи савдои дарозмуддат, ки ба нигоҳ доштани мавқеъҳо аз якчанд ҳафта то якчанд моҳ ё ҳатто солҳо асос ёфтааст. Ба муайян ва пайравӣ кардани тамоюлҳои дарозмуддати бозор равона карда шудааст.',
+                'how_it_works': 'Чӣ тавр кор мекунад:\n'
+                               '1. Таҳлили омилҳои асосӣ ва тамоюлҳои макроиқтисодӣ\n'
+                               '2. Муайян кардани тамоюли дарозмуддат дар графикҳои рӯзона ва ҳафтаина\n'
+                               '3. Истифодаи сатҳҳои асосии дастгирӣ ва муқовимат\n'
+                               '4. Кушодани мавқеъҳо бо ҳисоби ҳаракатҳои назарраси нарх\n'
+                               '5. Нигоҳ доштани муомилаҳо дар тӯли давраи дароз бо танзими даврии стоп-лоссҳо',
+                'pros_cons': '*Афзалиятҳо:*\n'
+                           '✅ Сарфи камтарини вақт барои савдо\n'
+                           '✅ Хароҷоти хеле пасти комиссионӣ\n'
+                           '✅ Имконияти гирифтани фоидаи назаррас аз ҳаракатҳои калони бозор\n'
+                           '✅ Осебпазирии камтар ба ғавғои бозор ва тағйироти кӯтоҳмуддат\n\n'
+                           '*Камбудиҳо:*\n'
+                           '❌ Сармояи назарраси савдоро талаб мекунад\n'
+                           '❌ Давраи дарози интизории натиҷаҳо\n'
+                           '❌ Фаҳмиши амиқи омилҳои асосиро талаб мекунад\n'
+                           '❌ Хавфи аз даст додани имкониятҳои дигари савдо бо сабаби сармояи банд'
             }
         },
         'Разворотнаястратегия': {
@@ -7068,24 +7486,61 @@ async def show_tool_details(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             },
             'ru': {
                 'title': '📈 Технические индикаторы',
-                'description': 'Технические индикаторы - это математические инструменты для анализа цен и объема торгов.',
-                'popular_tools': '*Наиболее популярные индикаторы:*\n\n'
-                                '1. *Скользящие средние (MA)*\n'
-                                '- Применение: Определение тренда и уровней поддержки/сопротивления\n'
-                                '- Типы: Простая (SMA), Экспоненциальная (EMA), Сглаженная (SMMA)\n\n'
-                                '2. *Индекс относительной силы (RSI)*\n'
-                                '- Применение: Определение состояний перекупленности/перепроданности\n'
-                                '- Диапазон: от 0 до 100, с ключевыми уровнями 30 и 70\n\n'
-                                '3. *MACD (Схождение/расхождение скользящих средних)*\n'
-                                '- Применение: Определение тренда и его силы\n'
-                                '- Состав: Разница между краткосрочной и долгосрочной EMA',
-                'recommendations': '*Рекомендации по использованию индикаторов:*\n\n'
-                                  '✅ Для начинающих: Скользящие средние (MA), RSI\n'
-                                  '✅ Для определения тренда: MA, MACD, ADX\n'
-                                  '✅ Для осцилляторов: RSI, Стохастик, CCI\n'
-                                  '❗ Ни один индикатор не дает 100% эффективности, используйте их в комбинации',
-                'examples': '*Пример:* \n'
-                           'Для трендовой стратегии вы можете использовать комбинацию EMA-20 и EMA-50, получая сигнал при их пересечении.'
+                'description': 'Технические индикаторы - это математические инструменты для анализа цен и объема торгов. Они помогают трейдерам идентифицировать рыночные тенденции, точки входа и выхода из сделок.',
+                'popular_tools': '*Основные группы индикаторов:*\n\n'
+                                '1. *Трендовые индикаторы*\n'
+                                '- Скользящие средние (MA): SMA, EMA, VWMA, LWMA\n'
+                                '- Полосы Боллинджера: каналы волатильности с базовой линией SMA\n'
+                                '- Направленное движение (ADX): измеряет силу тренда (0-100)\n'
+                                '- Параболическая система (SAR): определяет точки разворота тренда\n'
+                                '- Ichimoku Kinko Hyo: комплексная система для анализа тренда\n\n'
+                                
+                                '2. *Осцилляторы*\n'
+                                '- RSI (Индекс относительной силы): 0-100, с уровнями 30/70\n'
+                                '- Стохастический осциллятор: два параметра %K и %D для подтверждения\n'
+                                '- MACD (Конвергенция/дивергенция скользящих средних): гистограмма\n'
+                                '- CCI (Индекс товарного канала): для определения сильных движений\n'
+                                '- Momentum: показывает скорость изменения цены\n\n'
+                                
+                                '3. *Индикаторы объема*\n'
+                                '- Volume: базовый индикатор объема торгов\n'
+                                '- OBV (On-Balance Volume): накопленный объем по дням\n'
+                                '- Money Flow Index (MFI): совмещает цену и объем\n'
+                                '- Chaikin Money Flow: денежные потоки за определенный период\n\n'
+                                
+                                '4. *Индикаторы волатильности*\n'
+                                '- ATR (Average True Range): средний истинный диапазон цены\n'
+                                '- Bollinger Bands Width: ширина полос Боллинджера\n'
+                                '- Keltner Channels: каналы для измерения волатильности',
+                                
+                'recommendations': '*Практические рекомендации по работе с индикаторами:*\n\n'
+                                  '✅ Используйте несколько индикаторов из разных групп (3-4 максимум)\n'
+                                  '✅ Адаптируйте индикаторы под текущее состояние рынка:\n'
+                                  '   - Трендовый рынок: MA, MACD, Bollinger Bands, ADX\n'
+                                  '   - Боковой рынок: RSI, Stochastic, MFI, CCI\n'
+                                  '   - Волатильный рынок: ATR, Bollinger Bands, Keltner Channels\n'
+                                  '✅ Экспериментируйте с настройкой параметров индикаторов\n'
+                                  '✅ Используйте индикаторы для подтверждения сигналов, полученных из анализа графика\n'
+                                  '✅ Разработайте четкие правила входа и выхода на основе показаний индикаторов\n'
+                                  '❗ Избегайте перенасыщения графика индикаторами\n'
+                                  '❗ Всегда подтверждайте сигналы индикаторов анализом графиков\n'
+                                  '❗ Регулярно оценивайте эффективность выбранных индикаторов',
+                                  
+                'examples': '*Примеры торговых стратегий с индикаторами:*\n\n'
+                           '1. *Пересечение скользящих средних:*\n'
+                           '- Вход: когда быстрая MA (EMA-9) пересекает медленную (EMA-21) снизу вверх\n'
+                           '- Выход: когда быстрая MA пересекает медленную сверху вниз или при достижении заданной прибыли\n'
+                           '- Stop-loss: на уровне последнего локального минимума\n\n'
+                           
+                           '2. *Стратегия RSI с подтверждением:*\n'
+                           '- Вход в лонг: RSI выходит из зоны перепроданности (выше 30), цена выше EMA-50\n'
+                           '- Вход в шорт: RSI выходит из зоны перекупленности (ниже 70), цена ниже EMA-50\n'
+                           '- Управление рисками: Stop-loss на уровне 1.5xATR от точки входа\n\n'
+                           
+                           '3. *Торговля по Bollinger Bands:*\n'
+                           '- Отскок: покупка при касании нижней полосы при общем растущем тренде\n'
+                           '- Пробой: вход при пробое верхней/нижней полосы после сжатия канала\n'
+                           '- Таргет: противоположная полоса или средняя линия'
             },
             'uz': {
                 'title': '📈 Texnik indikatorlar',
@@ -7131,24 +7586,61 @@ async def show_tool_details(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             },
             'en': {
                 'title': '📈 Technical Indicators',
-                'description': 'Technical indicators are mathematical tools for analyzing price and volume data.',
-                'popular_tools': '*Most Popular Indicators:*\n\n'
-                                '1. *Moving Averages (MA)*\n'
-                                '- Use: Determining trend and support/resistance levels\n'
-                                '- Types: Simple (SMA), Exponential (EMA), Smoothed (SMMA)\n\n'
-                                '2. *Relative Strength Index (RSI)*\n'
-                                '- Use: Identifying overbought/oversold conditions\n'
-                                '- Range: 0 to 100, with key levels at 30 and 70\n\n'
-                                '3. *MACD (Moving Average Convergence Divergence)*\n'
-                                '- Use: Determining trend and its strength\n'
-                                '- Composition: Difference between short-term and long-term EMA',
-                'recommendations': '*Recommendations for Using Indicators:*\n\n'
-                                  '✅ For beginners: Moving Averages (MA), RSI\n'
-                                  '✅ For trend determination: MA, MACD, ADX\n'
-                                  '✅ For oscillators: RSI, Stochastic, CCI\n'
-                                  '❗ No single indicator is 100% effective, use them in combination',
-                'examples': '*Example:* \n'
-                           'For a trend strategy, you can use a combination of EMA-20 and EMA-50, getting a signal when they cross each other.'
+                'description': 'Technical indicators are mathematical tools for analyzing price and volume data. They help traders identify market trends, entry and exit points for trades.',
+                'popular_tools': '*Main Indicator Categories:*\n\n'
+                                '1. *Trend Indicators*\n'
+                                '- Moving Averages (MA): SMA, EMA, VWMA, LWMA\n'
+                                '- Bollinger Bands: volatility channels with SMA baseline\n'
+                                '- Directional Movement (ADX): measures trend strength (0-100)\n'
+                                '- Parabolic SAR: identifies potential trend reversal points\n'
+                                '- Ichimoku Kinko Hyo: comprehensive system for trend analysis\n\n'
+                                
+                                '2. *Oscillators*\n'
+                                '- RSI (Relative Strength Index): 0-100, with 30/70 levels\n'
+                                '- Stochastic Oscillator: two parameters %K and %D for confirmation\n'
+                                '- MACD (Moving Average Convergence/Divergence): histogram\n'
+                                '- CCI (Commodity Channel Index): identifies strong movements\n'
+                                '- Momentum: shows rate of price change\n\n'
+                                
+                                '3. *Volume Indicators*\n'
+                                '- Volume: basic trading volume indicator\n'
+                                '- OBV (On-Balance Volume): accumulated volume by day\n'
+                                '- Money Flow Index (MFI): combines price and volume\n'
+                                '- Chaikin Money Flow: money flows over a specified period\n\n'
+                                
+                                '4. *Volatility Indicators*\n'
+                                '- ATR (Average True Range): average true price range\n'
+                                '- Bollinger Bands Width: width of Bollinger Bands\n'
+                                '- Keltner Channels: channels for measuring volatility',
+                                
+                'recommendations': '*Practical Recommendations for Working with Indicators:*\n\n'
+                                  '✅ Use multiple indicators from different groups (3-4 maximum)\n'
+                                  '✅ Adapt indicators to current market conditions:\n'
+                                  '   - Trending market: MA, MACD, Bollinger Bands, ADX\n'
+                                  '   - Ranging market: RSI, Stochastic, MFI, CCI\n'
+                                  '   - Volatile market: ATR, Bollinger Bands, Keltner Channels\n'
+                                  '✅ Experiment with indicator parameter settings\n'
+                                  '✅ Use indicators to confirm signals from chart analysis\n'
+                                  '✅ Develop clear entry and exit rules based on indicator readings\n'
+                                  '❗ Avoid overcrowding your chart with indicators\n'
+                                  '❗ Always confirm indicator signals with chart analysis\n'
+                                  '❗ Regularly evaluate the effectiveness of chosen indicators',
+                                  
+                'examples': '*Examples of Trading Strategies with Indicators:*\n\n'
+                           '1. *Moving Average Crossover:*\n'
+                           '- Entry: when fast MA (EMA-9) crosses slow MA (EMA-21) from below\n'
+                           '- Exit: when fast MA crosses slow MA from above or target profit is reached\n'
+                           '- Stop-loss: at the level of the last local minimum\n\n'
+                           
+                           '2. *RSI Strategy with Confirmation:*\n'
+                           '- Long entry: RSI exits oversold zone (above 30), price above EMA-50\n'
+                           '- Short entry: RSI exits overbought zone (below 70), price below EMA-50\n'
+                           '- Risk management: Stop-loss at 1.5xATR from entry point\n\n'
+                           
+                           '3. *Bollinger Bands Trading:*\n'
+                           '- Bounce: buy when price touches the lower band in an overall uptrend\n'
+                           '- Breakout: enter when price breaks upper/lower band after band contraction\n'
+                           '- Target: opposite band or middle line'
             }
         },
         'Управлениерисками': {
@@ -7176,27 +7668,122 @@ async def show_tool_details(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             },
             'ru': {
                 'title': '💰 Управление рисками',
-                'description': 'Управление рисками - методы снижения потенциальных убытков и сохранения капитала.',
-                'popular_tools': '*Основные инструменты управления рисками:*\n\n'
-                                '1. *Стоп-лосс*\n'
-                                '- Назначение: Ограничение убытка при движении цены против вашей позиции\n'
-                                '- Типы: Статический, трейлинг, процентный\n\n'
-                                '2. *Тейк-профит*\n'
-                                '- Назначение: Фиксация прибыли на целевом уровне\n'
-                                '- Типы: Статический, многоуровневый, процентный\n\n'
-                                '3. *Размер позиции*\n'
-                                '- Назначение: Определение правильного количества финансового инструмента для торговли\n'
-                                '- Расчет: На основе размера счета, риска на сделку и расстояния до стоп-лосса',
-                'recommendations': '*Рекомендации по управлению рисками:*\n\n'
-                                  '✅ Рискуйте не более 1-2% от общего капитала на одну сделку\n'
-                                  '✅ Всегда устанавливайте стоп-лосс\n'
-                                  '✅ Соотношение риск/прибыль не менее 1:2\n'
-                                  '✅ В периоды высокой волатильности уменьшайте размер позиции\n'
-                                  '❗ Управление рисками важнее торговой стратегии',
-                'examples': '*Пример:* \n'
-                           'Если у вас счет $10,000 и вы принимаете риск 1%, то на одну сделку рискуйте не более $100. Если ваш стоп-лосс составляет 10 пунктов, вы можете торговать 1 лотом.'
+                'description': 'Управление рисками - это система методов и приемов снижения потенциальных убытков и сохранения торгового капитала. Это фундаментальный аспект успешного трейдинга, который позволяет торговать в течение длительного времени и преодолевать неизбежные периоды убытков.',
+                'popular_tools': '*Комплексная система управления рисками:*\n\n'
+                                '1. *Ордера защиты капитала*\n'
+                                '- *Стоп-лосс* - ограничивает максимальный убыток по позиции\n'
+                                '  • Фиксированный - устанавливается на определенном ценовом уровне\n'
+                                '  • Трейлинг - следует за ценой, обеспечивая фиксацию прибыли\n'
+                                '  • Психологический - мысленный уровень без выставления ордера (не рекомендуется)\n\n'
+                                '- *Тейк-профит* - фиксирует прибыль на заданном уровне\n'
+                                '  • Одиночный - фиксирует всю позицию на одном уровне\n'
+                                '  • Многоуровневый - частичное закрытие на разных уровнях\n\n'
+                                
+                                '2. *Расчет размера позиции*\n'
+                                '- Формула: Размер позиции = (Капитал × % риска) ÷ (Размер стоп-лосса в пунктах × Стоимость пункта)\n'
+                                '- Калькуляторы позиций - инструменты для точного расчета\n'
+                                '- Автоматические торговые системы с встроенным управлением размера позиции\n\n'
+                                
+                                '3. *Техники диверсификации*\n'
+                                '- Торговля разными инструментами (валюты, акции, товары)\n'
+                                '- Использование некоррелирующих активов\n'
+                                '- Распределение капитала между различными стратегиями\n\n'
+                                
+                                '4. *Управление капиталом*\n'
+                                '- Принцип сложных процентов - увеличение размера позиции с ростом капитала\n'
+                                '- Методы вывода прибыли - стратегия частичного вывода средств\n'
+                                '- Защита от "просадки" - правила для сокращения размера позиций\n\n'
+                                
+                                '5. *Психологические аспекты*\n'
+                                '- Торговый журнал и анализ сделок\n'
+                                '- Техники контроля эмоций и принятия решений\n'
+                                '- Следование торговому плану и дисциплина',
+                                
+                'recommendations': '*Лучшие практики управления рисками:*\n\n'
+                                  '✅ *Правило 1-2%*: рискуйте не более 1-2% капитала на одну сделку\n'
+                                  '✅ *Правило 6%*: общий риск открытых позиций не должен превышать 6% от капитала\n'
+                                  '✅ *Соотношение риск/прибыль*: стремитесь к соотношению не менее 1:2 или 1:3\n'
+                                  '✅ *Снижение риска*: уменьшайте риск в периоды высокой волатильности или серии убыточных сделок\n'
+                                  '✅ *Лестничный выход*: фиксируйте часть прибыли на разных уровнях для снижения риска\n'
+                                  '✅ *Корреляция*: избегайте открытия похожих позиций в высококоррелированных инструментах\n'
+                                  '✅ *Правило серий*: после 2-3 убыточных сделок подряд, сделайте перерыв или уменьшите размер позиции\n'
+                                  '❗ *Правило "Ничего не делать"*: иногда лучшее управление риском - отказ от торговли в сложных условиях',
+                                  
+                'examples': '*Примеры практического применения:*\n\n'
+                           '1. *Расчет размера позиции*\n'
+                           '   Депозит: $10,000 | Риск: 1% ($100) | Стоп-лосс: 50 пунктов | Стоимость пункта: $1\n'
+                           '   Размер позиции = $100 ÷ (50 × $1) = 2 мини-лота\n\n'
+                           
+                           '2. *Многоуровневый выход из позиции*\n'
+                           '   Вход: 1.2000 | Стоп-лосс: 1.1950 (риск 50 пунктов)\n'
+                           '   Тейк-профит 1: 1.2050 (50% позиции, соотношение 1:1)\n'
+                           '   Тейк-профит 2: 1.2100 (50% позиции, соотношение 1:2)\n'
+                           '   После достижения TP1, передвинуть стоп-лосс в безубыток (1.2000)\n\n'
+                           
+                           '3. *Управление капиталом при просадке*\n'
+                           '   При просадке 5%: уменьшить размер позиции на 25%\n'
+                           '   При просадке 10%: уменьшить размер позиции на 50%\n'
+                           '   При просадке 15%: сделать перерыв и пересмотреть стратегию'
             },
-            # Добавьте другие языки
+            'en': {
+                'title': '💰 Risk Management',
+                'description': 'Risk management is a system of methods and techniques for reducing potential losses and preserving trading capital. It is a fundamental aspect of successful trading that allows you to trade for extended periods and overcome inevitable periods of losses.',
+                'popular_tools': '*Comprehensive Risk Management System:*\n\n'
+                                '1. *Capital Protection Orders*\n'
+                                '- *Stop-Loss* - limits the maximum loss on a position\n'
+                                '  • Fixed - set at a specific price level\n'
+                                '  • Trailing - follows the price, ensuring profit lock-in\n'
+                                '  • Mental - a mental level without placing an actual order (not recommended)\n\n'
+                                '- *Take-Profit* - locks in profit at a target level\n'
+                                '  • Single - closes the entire position at one level\n'
+                                '  • Multi-level - partial closure at different levels\n\n'
+                                
+                                '2. *Position Sizing Calculation*\n'
+                                '- Formula: Position Size = (Capital × % Risk) ÷ (Stop-Loss in Points × Point Value)\n'
+                                '- Position calculators - tools for precise calculation\n'
+                                '- Automated trading systems with built-in position size management\n\n'
+                                
+                                '3. *Diversification Techniques*\n'
+                                '- Trading different instruments (currencies, stocks, commodities)\n'
+                                '- Using non-correlating assets\n'
+                                '- Distributing capital across various strategies\n\n'
+                                
+                                '4. *Capital Management*\n'
+                                '- Compound interest principle - increasing position size as capital grows\n'
+                                '- Profit withdrawal methods - strategy for partial withdrawal of funds\n'
+                                '- Drawdown protection - rules for reducing position sizes\n\n'
+                                
+                                '5. *Psychological Aspects*\n'
+                                '- Trading journal and trade analysis\n'
+                                '- Emotion control techniques and decision making\n'
+                                '- Following a trading plan and discipline',
+                                
+                'recommendations': '*Best Risk Management Practices:*\n\n'
+                                  '✅ *1-2% Rule*: risk no more than 1-2% of capital per trade\n'
+                                  '✅ *6% Rule*: total risk of open positions should not exceed 6% of capital\n'
+                                  '✅ *Risk/Reward Ratio*: aim for a ratio of at least 1:2 or 1:3\n'
+                                  '✅ *Risk Reduction*: decrease risk during periods of high volatility or after a series of losing trades\n'
+                                  '✅ *Tiered Exit*: lock in partial profits at different levels to reduce risk\n'
+                                  '✅ *Correlation*: avoid opening similar positions in highly correlated instruments\n'
+                                  '✅ *Series Rule*: after 2-3 consecutive losing trades, take a break or reduce position size\n'
+                                  '❗ *"Do Nothing" Rule*: sometimes the best risk management is to avoid trading in difficult conditions',
+                                  
+                'examples': '*Practical Application Examples:*\n\n'
+                           '1. *Position Size Calculation*\n'
+                           '   Account: $10,000 | Risk: 1% ($100) | Stop-Loss: 50 points | Point Value: $1\n'
+                           '   Position Size = $100 ÷ (50 × $1) = 2 mini lots\n\n'
+                           
+                           '2. *Multi-Level Position Exit*\n'
+                           '   Entry: 1.2000 | Stop-Loss: 1.1950 (50 points risk)\n'
+                           '   Take-Profit 1: 1.2050 (50% of position, ratio 1:1)\n'
+                           '   Take-Profit 2: 1.2100 (50% of position, ratio 1:2)\n'
+                           '   After TP1 is reached, move Stop-Loss to breakeven (1.2000)\n\n'
+                           
+                           '3. *Capital Management During Drawdown*\n'
+                           '   At 5% drawdown: reduce position size by 25%\n'
+                           '   At 10% drawdown: reduce position size by 50%\n'
+                           '   At 15% drawdown: take a break and review strategy'
+            }
         }
         # Добавьте другие инструменты по аналогии
     }
