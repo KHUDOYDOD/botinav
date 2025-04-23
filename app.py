@@ -505,10 +505,153 @@ def home():
             </ol>
         </div>
         
-        <div class="currency-section">
+        <div class="currency-section wow animate__animated animate__fadeIn">
             <h2>💎 Доступные торговые инструменты</h2>
             
-            <h3>🏆 Основные валютные пары</h3>
+            <div style="margin: 30px auto; text-align: center;">
+                <div style="display: inline-block; position: relative; z-index: 10;">
+                    <button id="select-currency-btn" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; border: none; padding: 14px 30px; border-radius: 50px; font-weight: 600; font-size: 16px; cursor: pointer; box-shadow: 0 5px 15px rgba(122, 162, 247, 0.4); transition: all 0.3s ease;">
+                        Выбрать валютную пару для анализа
+                    </button>
+                    <div id="currency-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 300px; overflow-y: auto; background-color: var(--card-bg); margin-top: 10px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 100;">
+                        <div style="padding: 15px;">
+                            <input type="text" id="currency-search" placeholder="Поиск валютной пары..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--primary-color); background-color: var(--feature-bg); color: var(--text-color); margin-bottom: 10px;">
+                            
+                            <div id="currency-list" style="display: grid; grid-template-columns: 1fr; gap: 5px;">
+                                <!-- Форекс пары -->
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💶</span>EUR/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💷</span>GBP/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💴</span>USD/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💰</span>USD/CHF
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🍁</span>USD/CAD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🦘</span>AUD/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🥝</span>NZD/USD
+                                </div>
+                                
+                                <!-- Кросс-курсы -->
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💶💷</span>EUR/GBP
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💶💴</span>EUR/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💷💴</span>GBP/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🦘💴</span>AUD/JPY
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💶🦘</span>EUR/AUD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">💷💰</span>GBP/CHF
+                                </div>
+                                
+                                <!-- Криптовалюты -->
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">₿</span>BTC/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">⟠</span>ETH/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">✨</span>XRP/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">◎</span>SOL/USD
+                                </div>
+                                <div class="currency-select-item" style="padding: 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center;">
+                                    <span style="margin-right: 10px;">🐕</span>DOGE/USD
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const selectCurrencyBtn = document.getElementById('select-currency-btn');
+                    const currencyDropdown = document.getElementById('currency-dropdown');
+                    const currencySearch = document.getElementById('currency-search');
+                    const currencyItems = document.querySelectorAll('.currency-select-item');
+                    
+                    // Показать/скрыть выпадающий список
+                    selectCurrencyBtn.addEventListener('click', function() {
+                        if (currencyDropdown.style.display === 'none') {
+                            currencyDropdown.style.display = 'block';
+                            setTimeout(() => {
+                                currencySearch.focus();
+                            }, 100);
+                        } else {
+                            currencyDropdown.style.display = 'none';
+                        }
+                    });
+                    
+                    // Закрыть выпадающий список при клике вне его
+                    document.addEventListener('click', function(event) {
+                        if (!event.target.closest('#currency-dropdown') && 
+                            !event.target.closest('#select-currency-btn')) {
+                            currencyDropdown.style.display = 'none';
+                        }
+                    });
+                    
+                    // Функционал поиска
+                    currencySearch.addEventListener('input', function() {
+                        const searchTerm = currencySearch.value.toLowerCase();
+                        currencyItems.forEach(item => {
+                            const text = item.textContent.toLowerCase();
+                            if (text.includes(searchTerm)) {
+                                item.style.display = 'flex';
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        });
+                    });
+                    
+                    // Подсветка при наведении
+                    currencyItems.forEach(item => {
+                        item.addEventListener('mouseover', function() {
+                            this.style.backgroundColor = 'var(--feature-bg)';
+                        });
+                        
+                        item.addEventListener('mouseout', function() {
+                            this.style.backgroundColor = 'transparent';
+                        });
+                        
+                        // Выбор валютной пары
+                        item.addEventListener('click', function() {
+                            selectCurrencyBtn.textContent = 'Выбрано: ' + this.textContent.trim();
+                            currencyDropdown.style.display = 'none';
+                            
+                            // Анимируем кнопку
+                            selectCurrencyBtn.classList.add('animate__animated', 'animate__pulse');
+                            setTimeout(() => {
+                                selectCurrencyBtn.classList.remove('animate__animated', 'animate__pulse');
+                            }, 1000);
+                            
+                            // Здесь можно добавить функционал для перехода к анализу выбранной пары
+                            // или открытия Telegram с этой парой
+                        });
+                    });
+                });
+            </script>
+            
+            <h3 style="margin-top: 50px;">🏆 Основные валютные пары</h3>
             <div class="currency-list">
                 <div class="currency-pair">💶 EUR/USD</div>
                 <div class="currency-pair">💷 GBP/USD</div>
