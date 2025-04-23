@@ -635,17 +635,108 @@ def home():
                         
                         // Выбор валютной пары
                         item.addEventListener('click', function() {
-                            selectCurrencyBtn.textContent = 'Выбрано: ' + this.textContent.trim();
-                            currencyDropdown.style.display = 'none';
-                            
-                            // Анимируем кнопку
-                            selectCurrencyBtn.classList.add('animate__animated', 'animate__pulse');
-                            setTimeout(() => {
-                                selectCurrencyBtn.classList.remove('animate__animated', 'animate__pulse');
-                            }, 1000);
-                            
-                            // Здесь можно добавить функционал для перехода к анализу выбранной пары
-                            // или открытия Telegram с этой парой
+                            try {
+                                const pairText = this.textContent.trim();
+                                selectCurrencyBtn.textContent = 'Выбрано: ' + pairText;
+                                currencyDropdown.style.display = 'none';
+                                
+                                // Анимируем кнопку
+                                selectCurrencyBtn.classList.add('animate__animated', 'animate__pulse');
+                                setTimeout(() => {
+                                    selectCurrencyBtn.classList.remove('animate__animated', 'animate__pulse');
+                                }, 1000);
+                                
+                                // Получаем только символ валютной пары без эмодзи
+                                const pairSymbol = pairText.replace(/[^\w\/]/g, '');
+                                
+                                // Создаем ссылку для открытия бота с выбранной парой
+                                const botLink = `https://t.me/your_bot_username?start=analyze_${pairSymbol}`;
+                                
+                                // Выводим сообщение об успешном выборе
+                                const successMessage = document.createElement('div');
+                                successMessage.style.position = 'fixed';
+                                successMessage.style.top = '20px';
+                                successMessage.style.left = '50%';
+                                successMessage.style.transform = 'translateX(-50%)';
+                                successMessage.style.padding = '15px 25px';
+                                successMessage.style.backgroundColor = 'var(--success-color)';
+                                successMessage.style.color = '#ffffff';
+                                successMessage.style.borderRadius = '8px';
+                                successMessage.style.boxShadow = '0 5px 15px rgba(0,0,0,0.2)';
+                                successMessage.style.zIndex = '1000';
+                                successMessage.innerHTML = `Выбрана пара: <strong>${pairText}</strong>`;
+                                document.body.appendChild(successMessage);
+                                
+                                // Удаляем сообщение через 3 секунды
+                                setTimeout(() => {
+                                    successMessage.style.opacity = '0';
+                                    successMessage.style.transition = 'opacity 0.5s ease';
+                                    setTimeout(() => {
+                                        document.body.removeChild(successMessage);
+                                    }, 500);
+                                }, 3000);
+                                
+                                // Создаем кнопку для перехода в Telegram
+                                const telegramButton = document.createElement('a');
+                                telegramButton.href = botLink;
+                                telegramButton.target = '_blank';
+                                telegramButton.className = 'btn glowing-btn wow animate__animated animate__fadeIn';
+                                telegramButton.style.display = 'inline-block';
+                                telegramButton.style.marginTop = '20px';
+                                telegramButton.textContent = `Анализировать ${pairText} в Telegram`;
+                                
+                                // Найдем место для вставки кнопки
+                                const currencySection = document.querySelector('.currency-section');
+                                if (currencySection) {
+                                    // Проверяем, есть ли уже кнопка
+                                    const existingButton = currencySection.querySelector('.analyze-button-container');
+                                    if (existingButton) {
+                                        existingButton.innerHTML = '';
+                                        existingButton.appendChild(telegramButton);
+                                    } else {
+                                        const buttonContainer = document.createElement('div');
+                                        buttonContainer.className = 'analyze-button-container';
+                                        buttonContainer.style.textAlign = 'center';
+                                        buttonContainer.style.margin = '30px 0';
+                                        buttonContainer.appendChild(telegramButton);
+                                        
+                                        // Безопасная вставка кнопки
+                                        if (currencySection.querySelector('h3')) {
+                                            // Если есть заголовок h3, вставляем перед ним
+                                            currencySection.insertBefore(buttonContainer, currencySection.querySelector('h3'));
+                                        } else {
+                                            // Если заголовка нет, просто добавляем в конец секции
+                                            currencySection.appendChild(buttonContainer);
+                                        }
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Ошибка при выборе валютной пары:', error);
+                                
+                                // Выводим сообщение об ошибке
+                                const errorMessage = document.createElement('div');
+                                errorMessage.style.position = 'fixed';
+                                errorMessage.style.top = '20px';
+                                errorMessage.style.left = '50%';
+                                errorMessage.style.transform = 'translateX(-50%)';
+                                errorMessage.style.padding = '15px 25px';
+                                errorMessage.style.backgroundColor = 'var(--danger-color)';
+                                errorMessage.style.color = '#ffffff';
+                                errorMessage.style.borderRadius = '8px';
+                                errorMessage.style.boxShadow = '0 5px 15px rgba(0,0,0,0.2)';
+                                errorMessage.style.zIndex = '1000';
+                                errorMessage.innerHTML = 'Не удалось выбрать валютную пару. Пожалуйста, попробуйте еще раз.';
+                                document.body.appendChild(errorMessage);
+                                
+                                // Удаляем сообщение через 3 секунды
+                                setTimeout(() => {
+                                    errorMessage.style.opacity = '0';
+                                    errorMessage.style.transition = 'opacity 0.5s ease';
+                                    setTimeout(() => {
+                                        document.body.removeChild(errorMessage);
+                                    }, 500);
+                                }, 3000);
+                            }
                         });
                     });
                 });
