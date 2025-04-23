@@ -165,11 +165,11 @@ def monitor_bot():
                 # Start bot process
                 logger.info("Starting bot process...")
                 os.system('python bot.py &')
-                logger.info("Bot restarted")
+                logger.info("Бот перезапущен")
 
-            time.sleep(30)  # Check every 30 seconds for faster recovery
+            time.sleep(30)  # Проверка каждые 30 секунд для более быстрого восстановления
         except Exception as e:
-            logger.error(f"Error in monitor thread: {e}")
+            logger.error(f"Ошибка в потоке монитора: {e}")
             time.sleep(60)
 
 def run():
