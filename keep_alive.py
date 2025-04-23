@@ -167,7 +167,7 @@ def monitor_bot():
                 os.system('python bot.py &')
                 logger.info("Bot restarted")
 
-            time.sleep(60)  # Check every minute
+            time.sleep(30)  # Check every 30 seconds for faster recovery
         except Exception as e:
             logger.error(f"Error in monitor thread: {e}")
             time.sleep(60)

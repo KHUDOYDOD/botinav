@@ -9,7 +9,7 @@ deploymentTarget = "autoscale"
 run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 
 [workflows]
-runButton = "Project"
+runButton = "Run Bot"
 
 [[workflows.workflow]]
 name = "Project"
@@ -52,6 +52,15 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python clone_bot.py"
+
+[[workflows.workflow]]
+name = "Run Bot"
+author = 41830213
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python bot.py"
 
 [[ports]]
 localPort = 5000
