@@ -411,6 +411,54 @@ async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_moderator = user_data and user_data.get('is_moderator', False)
         is_approved = user_data and user_data.get('is_approved')
         
+        # Обработка обычных валютных пар
+        if query.data == "regular_pairs":
+            # Получаем язык пользователя
+            lang_code = get_user_language(user_id) or 'ru'
+            logger.info(f"Current language for user {user_id}: {lang_code}")
+            
+            # Создаем клавиатуру с обычными валютными парами
+            keyboard = []
+            
+            # Добавляем форекс пары
+            forex_pairs_to_show = ['💶 EUR/USD', '💷 GBP/USD', '💴 USD/JPY', '💰 USD/CHF', '🍁 USD/CAD', '🦘 AUD/USD', '🥝 NZD/USD']
+            for pair_name in forex_pairs_to_show:
+                row = []
+                row.append(InlineKeyboardButton(pair_name, callback_data=pair_name))
+                keyboard.append(row)
+                
+            # Добавляем кнопку для возврата в главное меню
+            return_button_text = {
+                'tg': '🏠 Ба саҳифаи аввал',
+                'ru': '🏠 На главную',
+                'uz': '🏠 Bosh sahifaga',
+                'kk': '🏠 Басты бетке',
+                'en': '🏠 Return to Main'
+            }
+            
+            keyboard.append([
+                InlineKeyboardButton(
+                    return_button_text.get(lang_code, return_button_text['ru']),
+                    callback_data="return_to_main"
+                )
+            ])
+            
+            # Заголовок для сообщения с валютными парами
+            title_text = {
+                'tg': '💱 Ҷуфтҳои асъорӣ',
+                'ru': '💱 Валютные пары',
+                'uz': '💱 Valyuta juftlari',
+                'kk': '💱 Валюта жұптары',
+                'en': '💱 Currency Pairs'
+            }
+            
+            # Отправляем сообщение с клавиатурой валютных пар
+            await query.edit_message_text(
+                title_text.get(lang_code, title_text['ru']),
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return
+            
         # Обработка OTC Pocket Option кнопок
         if query.data == "otc_pairs":
             await handle_otc_pairs(update, context)
