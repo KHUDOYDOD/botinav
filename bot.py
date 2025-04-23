@@ -7350,45 +7350,105 @@ async def handle_otc_pairs(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Определяем язык пользователя
         lang_code = user_data.get('language_code', 'tg')
         
-        # Расширенный список OTC пар для Pocket Option
-        otc_pairs = [
-            ["EUR/USD OTC", "GBP/USD OTC"],
-            ["EUR/CAD OTC", "AUD/CAD OTC"],
-            ["USD/CHF OTC", "GBP/JPY OTC"],
-            ["USD/JPY OTC", "AUD/JPY OTC"],
-            ["EUR/JPY OTC", "USD/CAD OTC"],
-            ["GBP/CHF OTC", "NZD/USD OTC"],
-            # Добавленные новые пары
-            ["AUD/USD OTC", "USD/SGD OTC"],
-            ["EUR/GBP OTC", "CHF/JPY OTC"],
-            ["EUR/AUD OTC", "EUR/NZD OTC"],
-            ["AUD/NZD OTC", "CAD/JPY OTC"],
-            ["AUD/CHF OTC", "NZD/JPY OTC"],
-            ["EUR/SGD OTC", "USD/NOK OTC"],
-            ["GBP/AUD OTC", "GBP/CAD OTC"],
-            ["GBP/NZD OTC", "USD/SEK OTC"]
-        ]
-        
         # Создаем клавиатуру с OTC парами
         keyboard = []
         
-        # Заголовок для OTC пар
-        keyboard.append([InlineKeyboardButton("📊 OTC Pocket Option", callback_data="header_otc_pairs")])
+        # Главный заголовок OTC Pocket Option
+        keyboard.append([InlineKeyboardButton("📊 OTC POCKET OPTION 📊", callback_data="header_otc_main")])
         
-        # Добавляем все OTC пары
-        for pair_row in otc_pairs:
-            buttons_row = []
-            for pair in pair_row:
-                buttons_row.append(InlineKeyboardButton(pair, callback_data=f"otc_{pair.replace('/', '_')}")), 
-            keyboard.append(buttons_row)
-            
+        # === ОСНОВНЫЕ OTC ПАРЫ ===
+        keyboard.append([InlineKeyboardButton("🌟 ОСНОВНЫЕ OTC ПАРЫ 🌟", callback_data="header_otc_major")])
+        
+        # Основные OTC пары USD
+        major_usd_pairs = [
+            "EUR/USD OTC", "GBP/USD OTC", "AUD/USD OTC", "NZD/USD OTC", 
+            "USD/CAD OTC", "USD/CHF OTC", "USD/JPY OTC", "USD/SGD OTC"
+        ]
+        
+        # Добавляем основные пары по 2 в строке
+        for i in range(0, len(major_usd_pairs), 2):
+            row = []
+            row.append(InlineKeyboardButton(major_usd_pairs[i], callback_data=f"otc_{major_usd_pairs[i].replace('/', '_')}"))
+            if i + 1 < len(major_usd_pairs):
+                row.append(InlineKeyboardButton(major_usd_pairs[i + 1], callback_data=f"otc_{major_usd_pairs[i + 1].replace('/', '_')}"))
+            keyboard.append(row)
+        
+        # === EUR КРОСС-КУРСЫ OTC ===
+        keyboard.append([InlineKeyboardButton("💶 EUR КРОСС-КУРСЫ OTC 💶", callback_data="header_otc_eur")])
+        
+        # Кросс-курсы EUR OTC
+        eur_pairs = [
+            "EUR/GBP OTC", "EUR/JPY OTC", "EUR/CAD OTC", 
+            "EUR/AUD OTC", "EUR/NZD OTC", "EUR/SGD OTC"
+        ]
+        
+        # Добавляем EUR кросс-курсы по 2 в строке
+        for i in range(0, len(eur_pairs), 2):
+            row = []
+            row.append(InlineKeyboardButton(eur_pairs[i], callback_data=f"otc_{eur_pairs[i].replace('/', '_')}"))
+            if i + 1 < len(eur_pairs):
+                row.append(InlineKeyboardButton(eur_pairs[i + 1], callback_data=f"otc_{eur_pairs[i + 1].replace('/', '_')}"))
+            keyboard.append(row)
+        
+        # === GBP КРОСС-КУРСЫ OTC ===
+        keyboard.append([InlineKeyboardButton("💷 GBP КРОСС-КУРСЫ OTC 💷", callback_data="header_otc_gbp")])
+        
+        # Кросс-курсы GBP OTC
+        gbp_pairs = [
+            "GBP/JPY OTC", "GBP/CHF OTC", "GBP/AUD OTC", 
+            "GBP/CAD OTC", "GBP/NZD OTC"
+        ]
+        
+        # Добавляем GBP кросс-курсы по 2 в строке
+        for i in range(0, len(gbp_pairs), 2):
+            row = []
+            row.append(InlineKeyboardButton(gbp_pairs[i], callback_data=f"otc_{gbp_pairs[i].replace('/', '_')}"))
+            if i + 1 < len(gbp_pairs):
+                row.append(InlineKeyboardButton(gbp_pairs[i + 1], callback_data=f"otc_{gbp_pairs[i + 1].replace('/', '_')}"))
+            keyboard.append(row)
+        
+        # === ДРУГИЕ КРОСС-КУРСЫ OTC ===
+        keyboard.append([InlineKeyboardButton("🔄 ДРУГИЕ КРОСС-КУРСЫ OTC 🔄", callback_data="header_otc_other")])
+        
+        # Другие кросс-курсы OTC
+        other_pairs = [
+            "AUD/JPY OTC", "AUD/CAD OTC", "AUD/CHF OTC", "AUD/NZD OTC",
+            "CAD/JPY OTC", "CHF/JPY OTC", "NZD/JPY OTC"
+        ]
+        
+        # Добавляем другие кросс-курсы по 2 в строке
+        for i in range(0, len(other_pairs), 2):
+            row = []
+            row.append(InlineKeyboardButton(other_pairs[i], callback_data=f"otc_{other_pairs[i].replace('/', '_')}"))
+            if i + 1 < len(other_pairs):
+                row.append(InlineKeyboardButton(other_pairs[i + 1], callback_data=f"otc_{other_pairs[i + 1].replace('/', '_')}"))
+            keyboard.append(row)
+        
+        # === ЭКЗОТИЧЕСКИЕ OTC ПАРЫ ===
+        keyboard.append([InlineKeyboardButton("🌍 ЭКЗОТИЧЕСКИЕ OTC ПАРЫ 🌍", callback_data="header_otc_exotic")])
+        
+        # Экзотические OTC пары
+        exotic_pairs = [
+            "USD/NOK OTC", "USD/SEK OTC", "USD/PLN OTC", "USD/MXN OTC",
+            "USD/ZAR OTC", "USD/TRY OTC"
+        ]
+        
+        # Добавляем экзотические пары по 2 в строке
+        for i in range(0, len(exotic_pairs), 2):
+            row = []
+            if i < len(exotic_pairs):
+                row.append(InlineKeyboardButton(exotic_pairs[i], callback_data=f"otc_{exotic_pairs[i].replace('/', '_')}"))
+            if i + 1 < len(exotic_pairs):
+                row.append(InlineKeyboardButton(exotic_pairs[i + 1], callback_data=f"otc_{exotic_pairs[i + 1].replace('/', '_')}"))
+            keyboard.append(row)
+        
         # Добавляем кнопку навигации назад
-        keyboard.append([InlineKeyboardButton("↩️ Назад", callback_data="return_to_main")])
+        keyboard.append([InlineKeyboardButton("↩️ Назад в главное меню", callback_data="return_to_main")])
         
         # Отправляем сообщение с клавиатурой
         await query.edit_message_text(
             "📱 *OTC Pocket Option*\n\n"
-            "Выберите торговую пару для анализа:",
+            "Выберите категорию и торговую пару для анализа:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
