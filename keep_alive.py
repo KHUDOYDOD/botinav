@@ -126,7 +126,7 @@ def monitor_bot():
 
 def run():
     """Run the Flask server"""
-    app.run(host='0.0.0.0', port=8080)
+    app.run(host='0.0.0.0', port=5000)
 
 def keep_alive():
     """Start monitoring thread and web server"""

@@ -62,3 +62,17 @@ seaborn
 telegram
 yfinance
 pytz
+flask
+matplotlib
+numpy
+pandas
+pillow
+psutil
+psycopg2-binary
+python-dotenv
+python-telegram-bot==20.6
+requests
+seaborn
+telegram
+yfinance
+gunicorn

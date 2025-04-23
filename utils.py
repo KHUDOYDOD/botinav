@@ -1,6 +1,6 @@
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from config import CURRENCY_PAIRS, LANGUAGES, MESSAGES
+from config import CURRENCY_PAIRS, LANGUAGES, MESSAGES, forex_pairs, crypto_pairs
 
 def get_language_keyboard():
     keyboard = []
@@ -58,7 +58,11 @@ def get_currency_keyboard(current_lang='tg', user_data=None):
 
     # Add other pairs with separating row
     keyboard.append([InlineKeyboardButton("🌏 Дигар ҷуфтҳо | Другие пары", callback_data="header_other")])
-    for pair_name in other_pairs:
+    
+    # Выбираем некоторые пары форекс для отображения в разделе "Другие пары"
+    other_pairs_to_show = list(forex_pairs.keys())[:5]  # Берем первые 5 пар из forex_pairs
+    
+    for pair_name in other_pairs_to_show:
         if len(row) == 2:
             keyboard.append(row)
             row = []

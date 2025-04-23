@@ -1,7 +1,16 @@
 import os
+import logging
+
+# Настройка логгера
+logger = logging.getLogger(__name__)
 
 # Bot configuration and constants
-BOT_TOKEN = os.environ.get('BOT_TOKEN')
+BOT_TOKEN = os.environ.get('BOT_TOKEN') or os.environ.get('TELEGRAM_BOT_TOKEN')
+
+# Если токен не найден, используем токен из константы
+if not BOT_TOKEN:
+    BOT_TOKEN = '7629015533:AAHXAGXM6XpgCmzg0keO0DTkyme78EfzK8E'
+    logger.info("Используется токен бота из константы")
 
 LANGUAGES = {
     'tg': 'Тоҷикӣ 🇹🇯',
@@ -61,6 +70,12 @@ CURRENCY_PAIRS = {
 # Разделяем валютные пары на Forex и Crypto для удобства
 forex_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if 'USD' not in k or '=X' in v}
 crypto_pairs = {k: v for k, v in CURRENCY_PAIRS.items() if '-USD' in v}
+
+# Экспортируем эти переменные явно
+__all__ = [
+    'BOT_TOKEN', 'LANGUAGES', 'CURRENCY_PAIRS', 
+    'forex_pairs', 'crypto_pairs', 'MESSAGES'
+]
 
 MESSAGES = {
     'tg': {
